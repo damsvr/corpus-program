@@ -93,7 +93,7 @@ export default async function AujourdhuiPage() {
           {missed.length > 0 ? (
             <div className="mt-4 rounded-2xl bg-accent/10 p-4">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent">
-                Non réalisés cette semaine ({missed.length})
+                Encore à faire cette semaine ({missed.length})
               </p>
               <ul className="mt-2 space-y-1 text-sm">
                 {missed.map((m) => (
@@ -101,7 +101,7 @@ export default async function AujourdhuiPage() {
                 ))}
               </ul>
               <p className="mt-3 text-xs text-muted">
-                Ces modules se rattrapent ici : Charge en premier, Moteur au moins 20 min après.
+                Ceux qui n&apos;auront pas été faits en fin de semaine se rattrapent ici : Charge en premier, Moteur au moins 20 min après.
               </p>
             </div>
           ) : (
@@ -179,7 +179,7 @@ function DayCard({
               </li>
             ))}
             {day.blocs.length > 3 && (
-              <li className="py-3 text-sm text-muted">+ {day.blocs.length - 3} autres blocs</li>
+              <li className="py-3 text-sm text-muted">+ {day.blocs.length - 3} {day.blocs.length - 3 > 1 ? "autres blocs" : "autre bloc"}</li>
             )}
           </ul>
           <div className="mt-4">

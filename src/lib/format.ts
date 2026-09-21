@@ -6,9 +6,9 @@ export function parseNotation(notation?: string | null): { sets: number; reps: s
   return { sets: Math.min(parseInt(m[1], 10), 20), reps: m[2] };
 }
 
-/** Nombre de répétitions si la valeur est un entier simple ("8", "8/côté" -> 8). */
+/** Répétitions pré-remplies : entier simple, avec ou sans "/côté" ("8", "8/côté"). Pas les distances ni durées. */
 export function repsAsNumber(reps: string): number | null {
-  const m = reps.match(/^(\d+)/);
+  const m = reps.trim().match(/^(\d+)(?:\s*\/\s*(?:côté|cote|jambe|bras|side|leg|arm))?$/i);
   return m ? parseInt(m[1], 10) : null;
 }
 
