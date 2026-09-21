@@ -1,0 +1,197 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProfileType {
+  CROSSFIT
+  HYBRID
+  FUNCTIONAL
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  NONE
+}
+
+enum PalierMateriel {
+  SALLE_COMPLETE
+  MINIMALISTE
+  DEPLACEMENT
+}
+
+enum WeekType {
+  CHARGEE
+  REALISATION
+  DELOAD
+}
+
+enum JourType {
+  ENTRAINEMENT
+  TAMPON
+}
+
+enum ModuleType {
+  CHARGE
+  VOLUME
+  MOTEUR
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  passwordHash       String
+  name               String?
+  createdAt          DateTime           @default(now())
+  // Prêt pour la facturation (Stripe viendra plus tard) — non exploité en v1.
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  trialEndsAt        DateTime?
+  // Profil d'entraînement actif : pilote la teinte d'accent de l'app.
+  activeProfile      ProfileType        @default(CROSSFIT)
+  reminderTime       String?            @default("07:00")
+  prs                Prs?
+  athlete            AthleteProfile?
+  programs           Program[]
+  sessions           SessionLog[]
+}
+
+// PR personnels : base du calcul des charges (%TM, %PDC) et des allures.
+model Prs {
+  userId               String   @id
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  arracheKg            Float?
+  epauleJeteKg         Float?
+  backSquatKg          Float?
+  frontSquatKg         Float?
+  souleveDeTerreKg     Float?
+  developpeCoucheKg    Float?
+  developpeMilitaireKg Float?
+  poidsDeCorpsKg       Float?
+  row2000m             String? // mm:ss
+  course5km            String? // mm:ss
+  updatedAt            DateTime @updatedAt
+}
+
+model AthleteProfile {
+  userId              String         @id
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  limitations         String         @default("")
+  pointsFaibles       String         @default("")
+  mouvementsBloquants String         @default("")
+  joursDisponibles    String[]       @default([])
+  palierMateriel      PalierMateriel @default(SALLE_COMPLETE)
+  updatedAt           DateTime       @updatedAt
+}
+
+model Program {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile   ProfileType
+  name      String
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  weeks     Week[]
+
+  @@index([userId, active])
+}
+
+model Week {
+  id              String   @id @default(cuid())
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  numero          Int // numéro de semaine dans le programme (1, 2, 3…)
+  blocNumero      Int
+  semaineDansBloc Int
+  type            WeekType
+  dureeTotaleMin  Int?
+  note            String?
+  // JSON importé tel quel (traçabilité, dont controles_anti_monotonie).
+  rawImportJson   Json
+  createdAt       DateTime @default(now())
+  days            Day[]
+
+  @@unique([programId, numero])
+}
+
+model Day {
+  id              String       @id @default(cuid())
+  weekId          String
+  week            Week         @relation(fields: [weekId], references: [id], onDelete: Cascade)
+  jour            Int
+  slot            Int?
+  jourType        JourType     @default(ENTRAINEMENT)
+  dureeEstimeeMin Int?
+  titre           String
+  blocs           Bloc[]
+  sessions        SessionLog[]
+
+  @@index([weekId, jour])
+}
+
+model Bloc {
+  id           String      @id @default(cuid())
+  dayId        String
+  day          Day         @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  ordre        Int
+  nom          String
+  module       ModuleType? // Functional uniquement
+  dureeMin     String?
+  isWod        Boolean     @default(false)
+  formatEntete String?
+  note         String?
+  exercices    Exercice[]
+
+  @@index([dayId, ordre])
+}
+
+model Exercice {
+  id       String        @id @default(cuid())
+  blocId   String
+  bloc     Bloc          @relation(fields: [blocId], references: [id], onDelete: Cascade)
+  ordre    Int
+  nom      String
+  notation String?
+  charge   String?
+  repos    String?
+  note     String?
+  logs     ExerciceLog[]
+
+  @@index([blocId, ordre])
+}
+
+// Une séance réalisée (ou, en Functional, un module réalisé).
+model SessionLog {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayId        String
+  day          Day           @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  module       ModuleType?
+  startedAt    DateTime      @default(now())
+  endedAt      DateTime?
+  durationMin  Int?
+  volumeKg     Float         @default(0)
+  exerciceLogs ExerciceLog[]
+
+  @@index([userId, startedAt])
+}
+
+model ExerciceLog {
+  id         String     @id @default(cuid())
+  sessionId  String
+  session    SessionLog @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exerciceId String
+  exercice   Exercice   @relation(fields: [exerciceId], references: [id], onDelete: Cascade)
+  // [{ "reps": 5, "kg": 80, "done": true }, ...]
+  sets       Json
+  note       String?
+
+  @@unique([sessionId, exerciceId])
+}
