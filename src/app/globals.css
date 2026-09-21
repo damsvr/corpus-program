@@ -1,26 +1,79 @@
 @import "tailwindcss";
 
+/* Identité Corpus Program : bleu nuit + turquoise. L'accent (dégradé des
+   boutons, éléments actifs) change selon le profil actif de l'athlète. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0f1a29;
+  --card: #1a2d47;
+  --card-2: #142338;
+  --line: #2a4163;
+  --text: #f3f6fb;
+  --muted: #8fa3bd;
+  --brand: #4fd8c4; /* turquoise de marque */
+
+  /* accent par défaut = CrossFit */
+  --accent-from: #ef4444;
+  --accent-to: #f97316;
+  --accent: #f0553a;
+}
+
+[data-profile="crossfit"] {
+  --accent-from: #ef4444;
+  --accent-to: #f43f5e;
+  --accent: #f0454f;
+}
+[data-profile="hybrid"] {
+  --accent-from: #facc15;
+  --accent-to: #f59e0b;
+  --accent: #f7b90f;
+}
+[data-profile="functional"] {
+  --accent-from: #fb923c;
+  --accent-to: #f97316;
+  --accent: #fa8225;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card2: var(--card-2);
+  --color-line: var(--line);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  background: var(--bg);
+  color: var(--text);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.grad-accent {
+  background-image: linear-gradient(90deg, var(--accent-from), var(--accent-to));
+}
+.grad-text {
+  background-image: linear-gradient(90deg, var(--accent-from), var(--accent-to));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+input,
+textarea,
+select {
+  color-scheme: dark;
 }

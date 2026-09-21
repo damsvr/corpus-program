@@ -187,7 +187,7 @@ describe("validateImport — avertissements", () => {
 
   it("signale un module Functional qui ne totalise pas 20 min", () => {
     const w = functionalWeek();
-    w.seances[0].blocs[0].duree_min = 30;
+    (w.seances[0].blocs[0] as { duree_min?: number }).duree_min = 30;
     const r = validateImport(w);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.warnings.join(" ")).toContain("20 min");
