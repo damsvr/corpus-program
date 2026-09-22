@@ -1,25 +1,20 @@
-# Blueprint Render : service web Next.js + Postgres géré (Francfort, RGPD).
+# Blueprint Render : service web Next.js. Base de données hébergée ailleurs
+# (Neon, plan gratuit) tant que le produit n'est pas encore lancé — voir
+# CLAUDE.md. DATABASE_URL est saisi à la main dans le dashboard Render
+# (sync: false), pas dérivé d'une base Render.
 services:
   - type: web
     name: corpus-program
     runtime: node
     region: frankfurt
-    plan: starter
+    plan: free
     buildCommand: npm ci --include=dev && npx prisma migrate deploy && npm run build
     startCommand: npm start
     healthCheckPath: /login
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: corpus-db
-          property: connectionString
+        sync: false
       - key: AUTH_SECRET
         generateValue: true
       - key: NODE_VERSION
         value: 22
-
-databases:
-  - name: corpus-db
-    region: frankfurt
-    plan: basic-256mb
-    databaseName: corpus
