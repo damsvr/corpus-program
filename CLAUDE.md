@@ -18,4 +18,8 @@ SaaS Next.js 15 (App Router) + Prisma/Postgres + Auth.js (credentials, JWT) + Ta
 - Ne jamais saisir de mot de passe réel dans un navigateur piloté par Claude. Pour tester l'UI connecté : créer un utilisateur synthétique en base et forger un cookie de session `authjs.session-token` avec `next-auth/jwt` (`encode`, salt = nom du cookie, secret = `AUTH_SECRET`).
 
 ## Feuille de route (hors v1)
-Stripe (essai gratuit puis 39 €/mois — champs `subscriptionStatus`/`trialEndsAt` déjà présents), e-mails (vérification, reset mot de passe), rappels quotidiens (`reminderTime` stocké, envoi non implémenté), filtrage par palier de matériel, vue coach, GitHub + CI, déploiement Render (`render.yaml`).
+Stripe (essai gratuit puis 39 €/mois — champs `subscriptionStatus`/`trialEndsAt` déjà présents), e-mails (vérification, reset mot de passe), rappels quotidiens (`reminderTime` stocké, envoi non implémenté), filtrage par palier de matériel, vue coach, CI.
+
+## Dépôt et déploiement
+- GitHub : `git@github.com:damsvr/corpus-program.git` (privé). Clé SSH dédiée sur cette machine : `~/.ssh/id_ed25519_corpus_program` (config dans `~/.ssh/config`, host `github.com`).
+- Render (`render.yaml`) : service web sur le plan **free** (se met en veille après inactivité — attendu tant que le produit n'est pas lancé). Base de données **hors Render** pour rester gratuit : Neon (Postgres géré, plan gratuit, région Francfort/eu-central-1). `DATABASE_URL` est saisi à la main dans les variables d'environnement du service Render (`sync: false` dans le blueprint), pas dérivé d'une base Render. Repasser en payant (Render Postgres ou autre) au lancement réel du produit.
