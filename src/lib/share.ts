@@ -7,8 +7,7 @@ export const PATTERN_LABEL: Record<Pattern, string> = {
   autre: "Autre",
 };
 
-// Le partage affiche « Hyrox » pour le profil Hybrid.
-export const SHARE_PROFILE_LABEL = { CROSSFIT: "CrossFit", HYBRID: "Hyrox", FUNCTIONAL: "Functional" } as const;
+export const SHARE_PROFILE_LABEL = { CROSSFIT: "CrossFit", HYBRID: "Hybrid", FUNCTIONAL: "Functional" } as const;
 
 export const SHARE_ACCENT = { CROSSFIT: "#f0454f", HYBRID: "#f7b90f", FUNCTIONAL: "#fa8225" } as const;
 
