@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { finishSession } from "../actions";
-import { parseRestSeconds } from "@/lib/format";
+import { isInformationalBloc, parseRestSeconds } from "@/lib/format";
 
 export type RunnerExercice = {
   id: string;
@@ -91,14 +91,17 @@ export function SessionRunner({
   const [now, setNow] = useState(startedAt);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  // Échauffement / mobilité : pas de charge ni de validation de série (juste informatif).
   const [state, setState] = useState<Record<string, SetState[]>>(() =>
     Object.fromEntries(
-      blocs.flatMap((b) =>
-        b.exercices.map((e) => [
-          e.id,
-          Array.from({ length: e.sets }, () => ({ kg: "", reps: e.defaultReps ? String(e.defaultReps) : "", done: false })),
-        ]),
-      ),
+      blocs
+        .filter((b) => !isInformationalBloc(b.nom))
+        .flatMap((b) =>
+          b.exercices.map((e) => [
+            e.id,
+            Array.from({ length: e.sets }, () => ({ kg: "", reps: e.defaultReps ? String(e.defaultReps) : "", done: false })),
+          ]),
+        ),
     ),
   );
 
@@ -192,67 +195,84 @@ export function SessionRunner({
           </h3>
           {b.formatEntete && <p className="mt-3 rounded-xl bg-bg/60 px-3 py-2 text-sm">{b.formatEntete}</p>}
           {b.note && <p className="mt-2 rounded-xl bg-brand/10 px-3 py-2 text-[0.8rem] text-brand">{b.note}</p>}
-          <div className="mt-4 space-y-5">
-            {b.exercices.map((e) => (
-              <div key={e.id}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="text-[0.95rem] font-medium">{e.nom}</span>
-                  <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                    {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
-                  </span>
+
+          {isInformationalBloc(b.nom) ? (
+            <ul className="mt-4 divide-y divide-line/70">
+              {b.exercices.map((e) => (
+                <li key={e.id} className="py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-[0.95rem]">{e.nom}</span>
+                    <span className="shrink-0 text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
+                      {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                  {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="mt-4 space-y-5">
+              {b.exercices.map((e) => (
+                <div key={e.id}>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="text-[0.95rem] font-medium">{e.nom}</span>
+                    <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
+                      {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
+                    </span>
+                  </div>
+                  {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
+                  <ul className="mt-2 space-y-2">
+                    {state[e.id].map((s, i) => (
+                      <li key={i} className="flex items-center gap-2">
+                        <span className="w-6 text-xs text-muted">{i + 1}</span>
+                        <input
+                          aria-label={`Charge série ${i + 1}`}
+                          inputMode="decimal"
+                          placeholder="kg"
+                          value={s.kg}
+                          onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
+                          className={input}
+                        />
+                        <input
+                          aria-label={`Répétitions série ${i + 1}`}
+                          inputMode="numeric"
+                          placeholder="reps"
+                          value={s.reps}
+                          onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
+                          className={input}
+                        />
+                        <button
+                          type="button"
+                          aria-pressed={s.done}
+                          onClick={() => toggleDone(e, i)}
+                          className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
+                            s.done ? "grad-accent text-black" : "border border-line text-muted"
+                          }`}
+                        >
+                          {s.done ? "✓ Fait" : "Fait ?"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  {rest[e.id] && (
+                    <RestTimer
+                      endsAt={rest[e.id]!.endsAt}
+                      now={now}
+                      setIndex={rest[e.id]!.setIndex}
+                      totalSets={e.sets}
+                      nextLabel={[e.notation, e.charge].filter(Boolean).join(" · ")}
+                      onSkip={() =>
+                        setRest((r) => {
+                          const { [e.id]: _drop, ...next } = r;
+                          return next;
+                        })
+                      }
+                    />
+                  )}
                 </div>
-                {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
-                <ul className="mt-2 space-y-2">
-                  {state[e.id].map((s, i) => (
-                    <li key={i} className="flex items-center gap-2">
-                      <span className="w-6 text-xs text-muted">{i + 1}</span>
-                      <input
-                        aria-label={`Charge série ${i + 1}`}
-                        inputMode="decimal"
-                        placeholder="kg"
-                        value={s.kg}
-                        onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
-                        className={input}
-                      />
-                      <input
-                        aria-label={`Répétitions série ${i + 1}`}
-                        inputMode="numeric"
-                        placeholder="reps"
-                        value={s.reps}
-                        onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
-                        className={input}
-                      />
-                      <button
-                        type="button"
-                        aria-pressed={s.done}
-                        onClick={() => toggleDone(e, i)}
-                        className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
-                          s.done ? "grad-accent text-black" : "border border-line text-muted"
-                        }`}
-                      >
-                        {s.done ? "✓ Fait" : "Fait ?"}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {rest[e.id] && (
-                  <RestTimer
-                    endsAt={rest[e.id]!.endsAt}
-                    now={now}
-                    setIndex={rest[e.id]!.setIndex}
-                    totalSets={e.sets}
-                    nextLabel={[e.notation, e.charge].filter(Boolean).join(" · ")}
-                    onSkip={() =>
-                      setRest((r) => {
-                        const { [e.id]: _drop, ...next } = r;
-                        return next;
-                      })
-                    }
-                  />
-                )}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       ))}
 

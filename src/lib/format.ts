@@ -25,6 +25,21 @@ export function parseRestSeconds(repos?: string | null): number | null {
   return Math.round(seconds);
 }
 
+const INFORMATIONAL_BLOC_KEYWORDS = ["echauffement", "mobilite", "preparation ciblee"];
+
+function stripAccents(s: string): string {
+  return s.normalize("NFD").replace(/\p{Diacritic}/gu, "");
+}
+
+/**
+ * Échauffement / mobilité (et prépa ciblée Functional) : blocs informatifs,
+ * pas de charge ni de validation de série à l'exécution (demande coach).
+ */
+export function isInformationalBloc(nom: string): boolean {
+  const n = stripAccents(nom).toLowerCase();
+  return INFORMATIONAL_BLOC_KEYWORDS.some((k) => n.includes(k));
+}
+
 export function formatDateFr(d: Date): string {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 }

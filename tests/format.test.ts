@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseRestSeconds } from "@/lib/format";
+import { isInformationalBloc, parseRestSeconds } from "@/lib/format";
 
 describe("parseRestSeconds", () => {
   it("secondes (deux apostrophes)", () => {
@@ -23,5 +23,26 @@ describe("parseRestSeconds", () => {
     expect(parseRestSeconds(null)).toBeNull();
     expect(parseRestSeconds("")).toBeNull();
     expect(parseRestSeconds("même barre")).toBeNull();
+  });
+});
+
+describe("isInformationalBloc", () => {
+  it("détecte échauffement et mobilité, accents et casse indifférents", () => {
+    expect(isInformationalBloc("ÉCHAUFFEMENT DYNAMIQUE")).toBe(true);
+    expect(isInformationalBloc("Échauffement progressif")).toBe(true);
+    expect(isInformationalBloc("MOBILITÉ CIBLÉE")).toBe(true);
+    expect(isInformationalBloc("mobilite ciblee")).toBe(true);
+  });
+
+  it("détecte la préparation ciblée (modules Functional)", () => {
+    expect(isInformationalBloc("PRÉPARATION CIBLÉE — CHARGE")).toBe(true);
+  });
+
+  it("ne détecte pas les blocs de travail", () => {
+    expect(isInformationalBloc("MONTÉE EN CHARGE")).toBe(false);
+    expect(isInformationalBloc("BLOC A — BACK SQUAT, MOUVEMENT PRINCIPAL")).toBe(false);
+    expect(isInformationalBloc("WOD — CORPUS 130319")).toBe(false);
+    expect(isInformationalBloc("COMPLÉMENTAIRE")).toBe(false);
+    expect(isInformationalBloc("ACTIVATION")).toBe(false);
   });
 });
