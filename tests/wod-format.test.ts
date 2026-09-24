@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractScoreHint, formatClock, parseWodFormat } from "@/lib/wod-format";
+import { extractScoreHint, formatClock, parseWodFormat, resolveBlocRounds } from "@/lib/wod-format";
 
 describe("parseWodFormat — EMOM", () => {
   it("EMOM avec rounds explicites entre parenthèses", () => {
@@ -113,6 +113,30 @@ describe("extractScoreHint", () => {
   it("null si absent", () => {
     expect(extractScoreHint("EMOM 14' (14 rounds)")).toBeNull();
     expect(extractScoreHint(null)).toBeNull();
+  });
+});
+
+describe("resolveBlocRounds", () => {
+  it("bloc en rounds (« N rounds, Every X:XX ») -> totalRounds + repos = durée du round", () => {
+    expect(resolveBlocRounds("4 rounds, Every 3:00 (12') — score = qualité d'exécution")).toEqual({
+      totalRounds: 4,
+      restSeconds: 180,
+    });
+  });
+
+  it("bloc EMOM non-WOD -> totalRounds + repos = 60s", () => {
+    expect(
+      resolveBlocRounds(
+        "EMOM 14' (14 rounds, alternée) — min impaire : complexe 2 hang power clean + 2 push press, min paire : D-ball bearhug carry",
+      ),
+    ).toEqual({ totalRounds: 14, restSeconds: 60 });
+  });
+
+  it("pas de structure en rounds (AMRAP, for time, absent, non reconnu) -> totalRounds 0", () => {
+    expect(resolveBlocRounds("AMRAP 13' — score = rounds + reps")).toEqual({ totalRounds: 0, restSeconds: null });
+    expect(resolveBlocRounds("For time, cap 16'")).toEqual({ totalRounds: 0, restSeconds: null });
+    expect(resolveBlocRounds(null)).toEqual({ totalRounds: 0, restSeconds: null });
+    expect(resolveBlocRounds("Format libre, à l'appréciation du coach")).toEqual({ totalRounds: 0, restSeconds: null });
   });
 });
 

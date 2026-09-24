@@ -1,9 +1,10 @@
 /**
  * Interprète `format_entete` (texte libre écrit par l'agent) pour déterminer
- * quel type de chrono le WOD a besoin — EMOM / intervalles / AMRAP / for time.
- * Seuls les blocs WOD (isWod) passent par ici : les autres formats "Every X
- * min" (Bloc B/C, Complémentaire...) restent sur le mécanisme simple
- * valider-la-série → repos, déjà en place.
+ * quel type de chrono un bloc a besoin — EMOM / intervalles / AMRAP / for
+ * time. Sert aux blocs WOD (chrono dédié, cf. wod-clock.tsx) mais aussi aux
+ * blocs de travail non-WOD structurés en rounds ("4 rounds, Every 3:00",
+ * "EMOM 14'"...) via `resolveBlocRounds`, pour dériver le nombre de séries
+ * du bloc et la durée de repos automatique entre rounds.
  */
 
 export type WodProgram =
@@ -63,6 +64,21 @@ export function extractScoreHint(formatEntete: string | null | undefined): strin
   if (!formatEntete) return null;
   const m = formatEntete.match(/score\s*=\s*([^—-]+)/i);
   return m ? m[1].trim().replace(/\.$/, "") : null;
+}
+
+/**
+ * Nombre de séries d'un bloc de travail (non-WOD) et repos automatique
+ * entre chacune — dérivés de `format_entete` quand il décrit une structure
+ * en rounds (EMOM / "N rounds, Every X:XX"). `totalRounds: 0` signale
+ * l'absence de structure en rounds : l'appelant retombe sur le nombre de
+ * séries propre à chaque exercice (notation "N×M").
+ */
+export function resolveBlocRounds(formatEntete: string | null | undefined): { totalRounds: number; restSeconds: number | null } {
+  const program = parseWodFormat(formatEntete);
+  if (program.kind === "interval" || program.kind === "emom") {
+    return { totalRounds: program.totalRounds, restSeconds: program.roundSeconds };
+  }
+  return { totalRounds: 0, restSeconds: null };
 }
 
 export function formatClock(totalSeconds: number): string {

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { finishSession } from "../actions";
 import { classifyBloc, parseNotation, parseRestSeconds } from "@/lib/format";
-import { formatClock } from "@/lib/wod-format";
+import { formatClock, resolveBlocRounds } from "@/lib/wod-format";
 import { WodClock } from "./wod-clock";
 
 export type RunnerExercice = {
@@ -197,21 +197,29 @@ export function SessionRunner({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Échauffement / mobilité / WOD : pas de charge ni de validation de série ici
-  // (chronos dédiés) — seuls les blocs de travail alimentent ce state.
+  // (chronos dédiés) — seuls les blocs de travail alimentent ce state. Pour
+  // un bloc structuré en rounds ("4 rounds, Every 3:00", EMOM...), le nombre
+  // de séries vient du format_entete (partagé par tous les mouvements du
+  // bloc) plutôt que de la notation propre à chaque exercice.
   const [state, setState] = useState<Record<string, SetState[]>>(() =>
     Object.fromEntries(
       blocs
         .filter((b) => classifyBloc(b.nom, b.isWod) === "travail")
-        .flatMap((b) =>
-          b.exercices.map((e) => [
-            e.id,
-            Array.from({ length: e.sets }, () => ({ kg: "", reps: e.defaultReps ? String(e.defaultReps) : "", done: false })),
-          ]),
-        ),
+        .flatMap((b) => {
+          const { totalRounds } = resolveBlocRounds(b.formatEntete);
+          return b.exercices.map((e) => {
+            const rounds = totalRounds > 0 ? totalRounds : e.sets;
+            return [
+              e.id,
+              Array.from({ length: rounds }, () => ({ kg: "", reps: e.defaultReps ? String(e.defaultReps) : "", done: false })),
+            ] as const;
+          });
+        }),
     ),
   );
 
   const [rest, setRest] = useState<Record<string, RestState | undefined>>({});
+  const [blocRest, setBlocRest] = useState<Record<string, RestState | undefined>>({});
   const [wodScores, setWodScores] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
@@ -221,7 +229,7 @@ export function SessionRunner({
 
   // Purge les repos écoulés pour ne pas garder un état obsolète.
   useEffect(() => {
-    setRest((r) => {
+    const purge = (r: Record<string, RestState | undefined>) => {
       const next: typeof r = {};
       let changed = false;
       for (const [id, v] of Object.entries(r)) {
@@ -229,7 +237,9 @@ export function SessionRunner({
         else changed = true;
       }
       return changed ? next : r;
-    });
+    };
+    setRest(purge);
+    setBlocRest(purge);
   }, [now]);
 
   const elapsed = Math.floor((now - startedAt) / 1000);
@@ -240,6 +250,29 @@ export function SessionRunner({
   const update = (id: string, i: number, patch: Partial<SetState>) =>
     setState((s) => ({ ...s, [id]: s[id].map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
 
+  // Bloc structuré en rounds ("4 rounds, Every 3:00", EMOM...) : le repos
+  // s'enclenche automatiquement pour tout le bloc dès que le DERNIER
+  // mouvement de la série est validé — pas un repos par exercice.
+  const toggleBlocDone = (b: RunnerBloc, ex: RunnerExercice, i: number, totalRounds: number, restSeconds: number | null) => {
+    const wasDone = state[ex.id][i].done;
+    update(ex.id, i, { done: !wasDone });
+    const isLastExercice = b.exercices[b.exercices.length - 1].id === ex.id;
+    if (!isLastExercice) return;
+    const isLastRound = i === totalRounds - 1;
+    if (!wasDone && restSeconds && !isLastRound) {
+      setBlocRest((r) => ({ ...r, [b.id]: { endsAt: Date.now() + restSeconds * 1000, setIndex: i } }));
+    } else if (wasDone) {
+      setBlocRest((r) => {
+        const cur = r[b.id];
+        if (!cur || cur.setIndex !== i) return r;
+        const { [b.id]: _drop, ...next } = r;
+        return next;
+      });
+    }
+  };
+
+  // Séries droites (notation "N×M" propre à l'exercice) : repos entre
+  // chaque série du même mouvement.
   const toggleDone = (ex: RunnerExercice, i: number) => {
     const wasDone = state[ex.id][i].done;
     update(ex.id, i, { done: !wasDone });
@@ -355,69 +388,99 @@ export function SessionRunner({
               </ul>
             )}
 
-            {kind === "travail" && (
-              <div className="mt-4 space-y-5">
-                {b.exercices.map((e) => (
-                  <div key={e.id}>
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[0.95rem] font-medium">{e.nom}</span>
-                      <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                        {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
-                      </span>
-                    </div>
-                    {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
-                    <ul className="mt-2 space-y-2">
-                      {state[e.id].map((s, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <span className="w-6 text-xs text-muted">{i + 1}</span>
-                          <input
-                            aria-label={`Charge série ${i + 1}`}
-                            inputMode="decimal"
-                            placeholder="kg"
-                            value={s.kg}
-                            onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
-                            className={input}
-                          />
-                          <input
-                            aria-label={`Répétitions série ${i + 1}`}
-                            inputMode="numeric"
-                            placeholder="reps"
-                            value={s.reps}
-                            onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
-                            className={input}
-                          />
-                          <button
-                            type="button"
-                            aria-pressed={s.done}
-                            onClick={() => toggleDone(e, i)}
-                            className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
-                              s.done ? "grad-accent text-black" : "border border-line text-muted"
-                            }`}
-                          >
-                            {s.done ? "✓ Fait" : "Fait ?"}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                    {rest[e.id] && (
+            {kind === "travail" &&
+              (() => {
+                const { totalRounds, restSeconds } = resolveBlocRounds(b.formatEntete);
+                return (
+                  <div className="mt-4 space-y-5">
+                    {totalRounds > 0 && <p className="eyebrow !text-accent">{totalRounds} séries</p>}
+                    {b.exercices.map((e) => {
+                      const reps = parseNotation(e.notation).reps;
+                      const hasWeight = !!e.charge?.trim();
+                      return (
+                        <div key={e.id}>
+                          <div className="flex items-baseline justify-between gap-3">
+                            <span className="text-[0.95rem] font-medium">{e.nom}</span>
+                            <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
+                              {[reps, e.charge, e.repos].filter(Boolean).join(" · ")}
+                            </span>
+                          </div>
+                          {totalRounds === 0 && e.sets > 1 && (
+                            <p className="mt-0.5 text-[0.68rem] uppercase tracking-[0.1em] text-muted">{e.sets} séries</p>
+                          )}
+                          {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
+                          <ul className="mt-2 space-y-2">
+                            {state[e.id].map((s, i) => (
+                              <li key={i} className="flex items-center gap-2">
+                                {hasWeight && (
+                                  <input
+                                    aria-label={`Charge série ${i + 1}`}
+                                    inputMode="decimal"
+                                    placeholder="kg"
+                                    value={s.kg}
+                                    onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
+                                    className={input}
+                                  />
+                                )}
+                                <input
+                                  aria-label={`Répétitions série ${i + 1}`}
+                                  inputMode="numeric"
+                                  placeholder="reps"
+                                  value={s.reps}
+                                  onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
+                                  className={input}
+                                />
+                                <button
+                                  type="button"
+                                  aria-pressed={s.done}
+                                  onClick={() =>
+                                    totalRounds > 0 ? toggleBlocDone(b, e, i, totalRounds, restSeconds) : toggleDone(e, i)
+                                  }
+                                  className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
+                                    s.done ? "grad-accent text-black" : "border border-line text-muted"
+                                  }`}
+                                >
+                                  {s.done ? "✓ Fait" : "Fait ?"}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                          {totalRounds === 0 && rest[e.id] && (
+                            <RestTimer
+                              endsAt={rest[e.id]!.endsAt}
+                              now={now}
+                              setIndex={rest[e.id]!.setIndex}
+                              totalSets={e.sets}
+                              nextLabel={[reps, e.charge].filter(Boolean).join(" · ")}
+                              onSkip={() =>
+                                setRest((r) => {
+                                  const { [e.id]: _drop, ...next } = r;
+                                  return next;
+                                })
+                              }
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                    {totalRounds > 0 && blocRest[b.id] && (
                       <RestTimer
-                        endsAt={rest[e.id]!.endsAt}
+                        endsAt={blocRest[b.id]!.endsAt}
                         now={now}
-                        setIndex={rest[e.id]!.setIndex}
-                        totalSets={e.sets}
-                        nextLabel={[e.notation, e.charge].filter(Boolean).join(" · ")}
+                        setIndex={blocRest[b.id]!.setIndex}
+                        totalSets={totalRounds}
+                        nextLabel={b.exercices.map((e) => e.nom).join(" · ")}
                         onSkip={() =>
-                          setRest((r) => {
-                            const { [e.id]: _drop, ...next } = r;
+                          setBlocRest((r) => {
+                            const { [b.id]: _drop, ...next } = r;
                             return next;
                           })
                         }
                       />
                     )}
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })()}
           </section>
         );
       })}
