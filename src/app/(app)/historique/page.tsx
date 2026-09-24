@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META } from "@/lib/profiles";
@@ -59,6 +60,12 @@ export default async function HistoriquePage() {
                 {formatDateFr(s.endedAt!)} · {s.durationMin} min · volume {Math.round(s.volumeKg)} kg
               </p>
               {s.wodScore && <p className="mt-1 text-sm text-accent">Score WOD : {s.wodScore}</p>}
+              <Link
+                href={`/partager/${s.id}`}
+                className="mt-3 inline-block rounded-full border border-accent/40 px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent"
+              >
+                Partager
+              </Link>
             </li>
           ))}
         </ul>
