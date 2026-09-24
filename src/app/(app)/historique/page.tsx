@@ -58,6 +58,7 @@ export default async function HistoriquePage() {
               <p className="eyebrow mt-2">
                 {formatDateFr(s.endedAt!)} · {s.durationMin} min · volume {Math.round(s.volumeKg)} kg
               </p>
+              {s.wodScore && <p className="mt-1 text-sm text-accent">Score WOD : {s.wodScore}</p>}
             </li>
           ))}
         </ul>

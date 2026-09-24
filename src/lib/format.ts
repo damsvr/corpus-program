@@ -40,6 +40,25 @@ export function isInformationalBloc(nom: string): boolean {
   return INFORMATIONAL_BLOC_KEYWORDS.some((k) => n.includes(k));
 }
 
+/**
+ * Parmi les blocs informatifs, lequel est de la mobilité pure (chrono par
+ * mouvement) plutôt qu'un échauffement (chrono global du bloc). Un bloc qui
+ * mentionne les deux ("ÉCHAUFFEMENT GÉNÉRAL & MOBILITÉ") reste traité comme
+ * échauffement — un seul enchaînement continu, pas mouvement par mouvement.
+ */
+export function isMobiliteBloc(nom: string): boolean {
+  const n = stripAccents(nom).toLowerCase();
+  return n.includes("mobilite") && !n.includes("echauffement");
+}
+
+export type BlocKind = "wod" | "echauffement" | "mobilite" | "travail";
+
+export function classifyBloc(nom: string, isWod: boolean): BlocKind {
+  if (isWod) return "wod";
+  if (!isInformationalBloc(nom)) return "travail";
+  return isMobiliteBloc(nom) ? "mobilite" : "echauffement";
+}
+
 export function formatDateFr(d: Date): string {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 }

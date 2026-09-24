@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isInformationalBloc, parseRestSeconds } from "@/lib/format";
+import { classifyBloc, isInformationalBloc, isMobiliteBloc, parseRestSeconds } from "@/lib/format";
 
 describe("parseRestSeconds", () => {
   it("secondes (deux apostrophes)", () => {
@@ -44,5 +44,31 @@ describe("isInformationalBloc", () => {
     expect(isInformationalBloc("WOD — CORPUS 130319")).toBe(false);
     expect(isInformationalBloc("COMPLÉMENTAIRE")).toBe(false);
     expect(isInformationalBloc("ACTIVATION")).toBe(false);
+  });
+});
+
+describe("isMobiliteBloc / classifyBloc", () => {
+  it("mobilité pure -> mobilite", () => {
+    expect(isMobiliteBloc("MOBILITÉ CIBLÉE")).toBe(true);
+    expect(classifyBloc("MOBILITÉ CIBLÉE", false)).toBe("mobilite");
+  });
+
+  it("échauffement + mobilité combinés -> échauffement (chrono global)", () => {
+    expect(isMobiliteBloc("ÉCHAUFFEMENT GÉNÉRAL & MOBILITÉ")).toBe(false);
+    expect(classifyBloc("ÉCHAUFFEMENT GÉNÉRAL & MOBILITÉ", false)).toBe("echauffement");
+  });
+
+  it("préparation ciblée -> échauffement (chrono global)", () => {
+    expect(classifyBloc("PRÉPARATION CIBLÉE — CHARGE", false)).toBe("echauffement");
+  });
+
+  it("bloc WOD -> wod, même si le nom contiendrait échauffement/mobilité", () => {
+    expect(classifyBloc("WOD — CORPUS FF J1", true)).toBe("wod");
+    expect(classifyBloc("MOBILITÉ CIBLÉE", true)).toBe("wod");
+  });
+
+  it("bloc de travail -> travail", () => {
+    expect(classifyBloc("BLOC A — BACK SQUAT, MOUVEMENT PRINCIPAL", false)).toBe("travail");
+    expect(classifyBloc("MONTÉE EN CHARGE", false)).toBe("travail");
   });
 });

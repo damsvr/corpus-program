@@ -64,6 +64,7 @@ export default async function SeancePage({
     dureeMin: b.dureeMin,
     formatEntete: b.formatEntete,
     note: b.note,
+    isWod: b.isWod,
     exercices: b.exercices.map((e) => {
       const n = parseNotation(e.notation);
       return {

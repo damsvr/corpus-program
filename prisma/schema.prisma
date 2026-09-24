@@ -190,6 +190,9 @@ model SessionLog {
   endedAt      DateTime?
   durationMin  Int?
   volumeKg     Float         @default(0)
+  // Score du bloc WOD de la séance (temps "MM:SS" ou texte libre type "4
+  // rounds + 12 reps"), saisi via le chrono dédié — cf. wod-format.ts.
+  wodScore     String?
   exerciceLogs ExerciceLog[]
 
   @@index([userId, startedAt])

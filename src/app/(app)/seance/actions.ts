@@ -16,6 +16,7 @@ const payload = z.object({
       sets: z.array(z.object({ kg: z.number().nullable(), reps: z.number().nullable(), done: z.boolean() })),
     }),
   ),
+  wodScore: z.string().trim().min(1).max(200).nullable().optional(),
 });
 
 export type FinishInput = z.infer<typeof payload>;
@@ -24,7 +25,7 @@ export async function finishSession(input: FinishInput): Promise<{ ok: boolean; 
   const user = await requireUser();
   const parsed = payload.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Données de séance invalides" };
-  const { dayId, module, startedAt, logs } = parsed.data;
+  const { dayId, module, startedAt, logs, wodScore } = parsed.data;
   const ownerId = await programOwnerId(user);
 
   const day = await db.day.findFirst({
@@ -54,6 +55,7 @@ export async function finishSession(input: FinishInput): Promise<{ ok: boolean; 
       endedAt: now,
       durationMin,
       volumeKg: Math.round(volumeKg * 10) / 10,
+      wodScore: wodScore ?? null,
       exerciceLogs: { create: clean.map((l) => ({ exerciceId: l.exerciceId, sets: l.sets })) },
     },
   });
