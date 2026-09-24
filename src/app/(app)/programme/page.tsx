@@ -100,8 +100,15 @@ export default async function ProgrammePage({
             <h2 className="mt-1 text-3xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           </div>
 
-          {day.blocs.some((b) => b.module)
-            ? MODULES.map((m) => {
+          {day.blocs.some((b) => b.module) ? (
+            <>
+              {/* Bloc(s) hors modules (ex. échauffement général) — rattachés au module Charge à l'exécution. */}
+              {day.blocs
+                .filter((b) => !b.module)
+                .map((b) => (
+                  <BlocCard key={b.id} bloc={b} />
+                ))}
+              {MODULES.map((m) => {
                 const blocs = filterModule(day, m);
                 if (!blocs.length) return null;
                 return (
@@ -114,8 +121,11 @@ export default async function ProgrammePage({
                     ))}
                   </div>
                 );
-              })
-            : day.blocs.map((b) => <BlocCard key={b.id} bloc={b} />)}
+              })}
+            </>
+          ) : (
+            day.blocs.map((b) => <BlocCard key={b.id} bloc={b} />)
+          )}
 
           <Link
             href={`/seance/${day.id}`}

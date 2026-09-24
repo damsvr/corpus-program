@@ -31,7 +31,12 @@ export default async function SeancePage({
   if (!day) notFound();
 
   const mod = MODULES.find((m) => m === sp.module) ?? null;
-  const blocs = day.blocs.filter((b) => (mod ? b.module === mod : true));
+  // Un bloc sans module (échauffement général hors budget des 20 min) est
+  // rattaché au lancement du module Charge, seul module garanti en premier
+  // dans la journée — sinon il ne serait jamais accessible via un module précis.
+  const blocs = day.blocs.filter((b) =>
+    mod ? b.module === mod || (mod === "CHARGE" && b.module === null) : true,
+  );
 
   // Règle de placement Functional : le module Moteur vient ≥ 20 min après Charge.
   let warning: string | null = null;

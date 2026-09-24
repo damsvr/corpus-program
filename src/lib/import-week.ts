@@ -1,7 +1,7 @@
 import type { ModuleType, WeekType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { profileFromKey, PROFILE_META } from "@/lib/profiles";
-import { totalWeekMinutes, type ImportedWeek } from "@/lib/import-schema";
+import { normalizeWeekday, totalWeekMinutes, type ImportedWeek } from "@/lib/import-schema";
 
 const WEEK_TYPE: Record<ImportedWeek["semaine"]["type"], WeekType> = {
   chargee: "CHARGEE",
@@ -58,7 +58,7 @@ export async function importWeek(userId: string, data: ImportedWeek, opts: { rep
           jour: s.jour,
           slot: s.slot ?? null,
           jourType: s.jour_type === "tampon" ? "TAMPON" : "ENTRAINEMENT",
-          weekday: s.slot ? (data.semaine.jours?.[`slot${s.slot}`] ?? null) : null,
+          weekday: s.slot ? normalizeWeekday(data.semaine.jours?.[`slot${s.slot}`] ?? "") : null,
           dureeEstimeeMin: s.duree_estimee_min ? Math.round(s.duree_estimee_min) : null,
           titre: s.titre,
           blocs: {

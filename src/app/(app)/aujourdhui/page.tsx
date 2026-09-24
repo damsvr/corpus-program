@@ -160,13 +160,17 @@ function DayCard({
             const blocs = filterModule(day, m);
             if (!blocs.length) return null;
             const finished = isDone(day.id, m);
+            const hasGeneralWarmup = m === "CHARGE" && day.blocs.some((b) => !b.module);
             return (
               <li key={m} className="flex items-center justify-between gap-3 rounded-2xl bg-bg/60 px-4 py-3">
                 <div>
                   <p className="text-sm font-bold uppercase">
                     {MODULE_META[m].label} <span className="text-muted">· 20&apos;</span>
                   </p>
-                  <p className="text-[0.72rem] text-muted">{MODULE_META[m].rule}</p>
+                  <p className="text-[0.72rem] text-muted">
+                    {MODULE_META[m].rule}
+                    {hasGeneralWarmup && " Inclut l'échauffement général du jour."}
+                  </p>
                 </div>
                 {finished ? (
                   <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand">✓ Fait</span>

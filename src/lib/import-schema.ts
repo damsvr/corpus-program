@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isInformationalBloc } from "@/lib/format";
 
 /**
  * Validation stricte du JSON produit par les agents (docs/agents/01-schema-sortie-commun.md).
@@ -9,7 +10,33 @@ export const PROFILS = ["crossfit", "hybrid", "functional"] as const;
 export type ProfilKey = (typeof PROFILS)[number];
 
 export const WEEKDAYS = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"] as const;
-const weekdaySchema = z.enum(WEEKDAYS);
+type Weekday = (typeof WEEKDAYS)[number];
+
+const FULL_WEEKDAYS: Record<string, Weekday> = {
+  lundi: "lun",
+  mardi: "mar",
+  mercredi: "mer",
+  jeudi: "jeu",
+  vendredi: "ven",
+  samedi: "sam",
+  dimanche: "dim",
+};
+
+/**
+ * "Lundi", "LUN", "libre (au choix de l'athlète)" -> jour reconnu, ou null
+ * (jour libre — cas légitime : un athlète sans jours fixes, cf. « l'ordre des
+ * jours s'adapte à l'emploi du temps »). N'importe quelle chaîne est acceptée
+ * en entrée ; c'est cette fonction qui décide si elle vaut un jour précis.
+ */
+export function normalizeWeekday(raw: string): Weekday | null {
+  const n = raw.trim().toLowerCase();
+  if ((WEEKDAYS as readonly string[]).includes(n)) return n as Weekday;
+  return FULL_WEEKDAYS[n] ?? null;
+}
+
+// Valeur libre dans le JSON : la normalisation (et le rejet éventuel) se fait
+// à l'usage (import-week.ts), pas ici — un jour "libre" est une valeur valide.
+const weekdaySchema = z.string().min(1);
 
 const dureeSchema = z.union([z.number(), z.string()]);
 
@@ -34,7 +61,9 @@ const blocSchema = z.object({
 });
 
 const seanceSchema = z.object({
-  slot: z.number().int().min(1).max(4).optional(),
+  // Plafonné à 4 uniquement pour les séances d'entraînement (vérifié plus
+  // bas) — le jour tampon peut porter un numéro hors de cette plage.
+  slot: z.number().int().min(1).optional(),
   jour: z.number().int().min(1).max(7),
   jour_type: z.enum(["entrainement", "tampon"]).default("entrainement"),
   duree_estimee_min: z.number().positive().optional(),
@@ -122,6 +151,9 @@ export function validateImport(input: unknown): ImportResult {
     if (s.duree_estimee_min && s.duree_estimee_min > 90) {
       errors.push(`${label} : ${s.duree_estimee_min} min — plafond absolu de 90 min dépassé`);
     }
+    if (s.jour_type === "entrainement" && s.slot !== undefined && s.slot > 4) {
+      errors.push(`${label} : slot ${s.slot} invalide — attendu entre 1 et 4 pour une séance d'entraînement`);
+    }
     s.blocs.forEach((b, bi) => {
       const bl = `${label} › bloc ${bi + 1} (« ${b.nom} »)`;
       if (b.type === "wod" && !b.format_entete) {
@@ -157,12 +189,14 @@ export function validateImport(input: unknown): ImportResult {
     }
     entrainement.forEach((s) => {
       const label = `« ${s.titre} »`;
-      const untagged = s.blocs.filter((b) => !b.module);
+      // Un bloc échauffement/mobilité général (hors des 3 modules de 20 min,
+      // cf. isInformationalBloc) n'a pas besoin d'être rattaché à un module.
+      const untagged = s.blocs.filter((b) => !b.module && !isInformationalBloc(b.nom));
       if (untagged.length) {
         errors.push(`Functional ${label} : ${untagged.length} bloc(s) sans champ module (charge/volume/moteur)`);
         return;
       }
-      const present = new Set(s.blocs.map((b) => b.module));
+      const present = new Set(s.blocs.filter((b) => b.module).map((b) => b.module));
       for (const m of ["charge", "volume", "moteur"] as const) {
         if (!present.has(m)) errors.push(`Functional ${label} : module « ${m} » manquant (3 modules attendus)`);
       }
@@ -205,6 +239,14 @@ export function validateImport(input: unknown): ImportResult {
 
   if (data.bloc.duree_semaines !== 6) {
     warnings.push(`bloc de ${data.bloc.duree_semaines} semaines (les 3 profils sont calés sur 6 semaines)`);
+  }
+
+  for (const [slotKey, value] of Object.entries(data.semaine.jours ?? {})) {
+    if (!normalizeWeekday(value)) {
+      warnings.push(
+        `semaine.jours.${slotKey} : « ${value} » n'est pas un jour de la semaine reconnu — le jour restera "libre" (modifiable ensuite dans l'app)`,
+      );
+    }
   }
 
   return errors.length ? { ok: false, errors, warnings } : { ok: true, data, warnings };

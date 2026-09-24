@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateImport, parseDuree } from "@/lib/import-schema";
+import { validateImport, parseDuree, normalizeWeekday } from "@/lib/import-schema";
 
 const ex = (nom: string, extra = {}) => ({ nom, notation: "3×8", ...extra });
 
@@ -59,7 +59,12 @@ function functionalWeek() {
   return {
     profil: "functional",
     bloc: { numero: 1, duree_semaines: 6 },
-    semaine: { numero_dans_le_bloc: 1, type: "chargee", duree_totale_min: 300 },
+    semaine: {
+      numero_dans_le_bloc: 1,
+      type: "chargee",
+      duree_totale_min: 300,
+      jours: {} as Record<string, string>,
+    },
     seances: [
       jour(1, "FORCE & STRUCTURE"),
       jour(2, "PUISSANCE & BALISTIQUE"),
@@ -99,10 +104,20 @@ describe("validateImport — cas valides", () => {
     if (r.ok) expect(r.data.semaine.jours).toEqual({ slot1: "lun", slot2: "mar", slot3: "jeu", slot4: "ven" });
   });
 
-  it("rejette une valeur de jour invalide dans semaine.jours", () => {
+  it("normalise les variantes reconnues (nom complet, casse) sans avertissement", () => {
     const w = crossfitWeek();
-    w.semaine.jours = { slot1: "lundi" } as unknown as typeof w.semaine.jours;
-    expect(validateImport(w).ok).toBe(false);
+    w.semaine.jours = { slot1: "Lundi", slot2: "MAR" } as unknown as typeof w.semaine.jours;
+    const r = validateImport(w);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.warnings).toEqual([]);
+  });
+
+  it("avertit (sans bloquer) pour une valeur de jour non reconnue — jour libre", () => {
+    const w = crossfitWeek();
+    w.semaine.jours = { slot1: "libre (au choix de l'athlète)" } as unknown as typeof w.semaine.jours;
+    const r = validateImport(w);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.warnings.join(" ")).toContain("jour de la semaine reconnu");
   });
 
   it("accepte une semaine Functional valide (4 jours × 3 modules + tampon)", () => {
@@ -209,5 +224,50 @@ describe("validateImport — avertissements", () => {
     const r = validateImport(w);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.warnings.join(" ")).toContain("20 min");
+  });
+});
+
+describe("normalizeWeekday", () => {
+  it("reconnaît les abréviations et les noms complets, casse indifférente", () => {
+    expect(normalizeWeekday("lun")).toBe("lun");
+    expect(normalizeWeekday("LUN")).toBe("lun");
+    expect(normalizeWeekday("Lundi")).toBe("lun");
+    expect(normalizeWeekday("dimanche")).toBe("dim");
+  });
+
+  it("retourne null pour une valeur non reconnue (jour libre)", () => {
+    expect(normalizeWeekday("libre (au choix de l'athlète)")).toBeNull();
+    expect(normalizeWeekday("")).toBeNull();
+  });
+});
+
+describe("régression — import Functional avec jours libres (bug rapporté)", () => {
+  it("accepte semaine.jours = « libre » sur chaque slot et un jour tampon avec slot=5", () => {
+    const w = functionalWeek();
+    w.semaine.jours = {
+      slot1: "libre (au choix de l'athlète)",
+      slot2: "libre (au choix de l'athlète)",
+      slot3: "libre (au choix de l'athlète)",
+      slot4: "libre (au choix de l'athlète)",
+    };
+    w.seances[4] = { ...w.seances[4], slot: 5 };
+    const r = validateImport(w);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.warnings.length).toBeGreaterThan(0);
+  });
+
+  it("accepte un bloc échauffement général sans module dans une journée Functional", () => {
+    const w = functionalWeek();
+    const blocs = w.seances[0].blocs as unknown as { nom: string; module?: string; exercices: unknown[] }[];
+    blocs.unshift({ nom: "ÉCHAUFFEMENT GÉNÉRAL & MOBILITÉ", exercices: [ex("Rameur facile")] });
+    const r = validateImport(w);
+    expect(r.ok).toBe(true);
+  });
+
+  it("rejette toujours un bloc de travail (non échauffement/mobilité) sans module", () => {
+    const w = functionalWeek();
+    const blocs = w.seances[0].blocs as unknown as { nom: string; module?: string; exercices: unknown[] }[];
+    blocs.unshift({ nom: "BLOC SUPPLÉMENTAIRE", exercices: [ex("Row")] });
+    expect(validateImport(w).ok).toBe(false);
   });
 });
