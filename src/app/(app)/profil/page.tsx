@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { JOURS, PROFILE_KEYS, PROFILE_META } from "@/lib/profiles";
 import { SaveForm } from "@/components/save-form";
+import { TimeInput } from "@/components/time-input";
 import { logout, saveAthlete, savePrs, saveReminder, setProfile } from "./actions";
 
 export const metadata = { title: "Profil — Corpus Program" };
@@ -12,7 +13,7 @@ const field =
 const area =
   "mt-2 w-full rounded-2xl border border-line bg-bg/70 px-4 py-3 text-sm outline-none focus:border-brand";
 
-const PR_FIELDS: { name: string; label: string; unit: string; hint?: string; ph?: string }[] = [
+const PR_FIELDS: { name: string; label: string; unit: string; hint?: string }[] = [
   { name: "arracheKg", label: "Arraché (snatch)", unit: "kg" },
   { name: "epauleJeteKg", label: "Épaulé-jeté (clean & jerk)", unit: "kg" },
   { name: "backSquatKg", label: "Back squat", unit: "kg" },
@@ -21,8 +22,8 @@ const PR_FIELDS: { name: string; label: string; unit: string; hint?: string; ph?
   { name: "developpeCoucheKg", label: "Développé couché", unit: "kg" },
   { name: "developpeMilitaireKg", label: "Développé militaire", unit: "kg" },
   { name: "poidsDeCorpsKg", label: "Poids de corps", unit: "kg", hint: "utilisé pour les % PDC" },
-  { name: "row2000m", label: "2000 m rameur", unit: "mm:ss", hint: "temps de référence", ph: "7:45" },
-  { name: "course5km", label: "5 km course", unit: "mm:ss", hint: "temps de référence", ph: "24:30" },
+  { name: "row2000m", label: "2000 m rameur", unit: "mm:ss", hint: "temps de référence" },
+  { name: "course5km", label: "5 km course", unit: "mm:ss", hint: "temps de référence" },
 ];
 
 export default async function ProfilPage() {
@@ -93,17 +94,23 @@ export default async function ProfilPage() {
                       {f.label}
                       {f.hint && <span className="block text-[0.7rem] text-muted">{f.hint}</span>}
                     </label>
-                    <span className="flex items-center gap-2">
-                      <input
-                        id={f.name}
-                        name={f.name}
-                        inputMode={f.unit === "kg" ? "decimal" : "numeric"}
-                        placeholder={f.ph ?? ""}
-                        defaultValue={prsRecord[f.name] ?? ""}
-                        className={field}
-                      />
-                      <span className="w-9 text-xs text-muted">{f.unit}</span>
-                    </span>
+                    {f.unit === "mm:ss" ? (
+                      <TimeInput id={f.name} name={f.name} defaultValue={prsRecord[f.name] as string | null | undefined} />
+                    ) : (
+                      <span className="flex items-center gap-2">
+                        <input
+                          id={f.name}
+                          name={f.name}
+                          inputMode="decimal"
+                          autoComplete="off"
+                          enterKeyHint="next"
+                          placeholder="0"
+                          defaultValue={prsRecord[f.name] ?? ""}
+                          className={field}
+                        />
+                        <span className="w-6 text-xs text-muted">{f.unit}</span>
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>

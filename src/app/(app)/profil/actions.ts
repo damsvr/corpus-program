@@ -17,7 +17,7 @@ const kg = z
 const mmss = z
   .string()
   .trim()
-  .pipe(z.union([z.literal(""), z.string().regex(/^\d{1,2}:[0-5]\d$/, "Format mm:ss attendu (ex. 7:45)")]))
+  .pipe(z.union([z.literal(""), z.string().regex(/^\d{1,2}:[0-5]\d$/, "Temps invalide : minutes puis secondes de 0 à 59 (ex. 7 min 45 s)")]))
   .transform((s) => (s === "" ? null : s));
 
 const prsSchema = z.object({
