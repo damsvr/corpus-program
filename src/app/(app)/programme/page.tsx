@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
-import { MODULE_META, PROFILE_META } from "@/lib/profiles";
+import { JOURS, MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, filterModule, getActiveProgram, getWeek } from "@/lib/program";
 import { BlocCard } from "@/components/bloc-card";
+import { WeekdaySelect } from "@/components/weekday-select";
+
+const weekdayLabel = (key: string | null) => JOURS.find((j) => j.key === key)?.label ?? null;
 
 export const metadata = { title: "Programme — Corpus Program" };
 
@@ -66,7 +69,9 @@ export default async function ProgrammePage({
               d.id === day?.id ? "grad-accent border-transparent text-black" : "border-line bg-card"
             }`}
           >
-            <span className="text-[0.6rem] uppercase tracking-[0.16em]">{d.jourType === "TAMPON" ? "Tampon" : "Jour"}</span>
+            <span className="text-[0.6rem] uppercase tracking-[0.16em]">
+              {d.jourType === "TAMPON" ? "Tampon" : (weekdayLabel(d.weekday) ?? "Jour")}
+            </span>
             <span className="text-2xl font-extrabold">{d.jourType === "TAMPON" ? "★" : d.jour}</span>
           </Link>
         ))}
@@ -75,10 +80,13 @@ export default async function ProgrammePage({
       {day && (
         <div className="space-y-4">
           <div>
-            <p className="eyebrow">
-              Jour {day.jour} · {day.jourType === "TAMPON" ? "Jour tampon" : "Séance"}
-              {day.dureeEstimeeMin ? ` · ≈ ${day.dureeEstimeeMin} min` : ""}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="eyebrow">
+                Jour {day.jour} · {day.jourType === "TAMPON" ? "Jour tampon" : "Séance"}
+                {day.dureeEstimeeMin ? ` · ≈ ${day.dureeEstimeeMin} min` : ""}
+              </p>
+              {day.jourType !== "TAMPON" && <WeekdaySelect dayId={day.id} value={day.weekday} />}
+            </div>
             <h2 className="mt-1 text-3xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           </div>
 

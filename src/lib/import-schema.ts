@@ -8,6 +8,9 @@ import { z } from "zod";
 export const PROFILS = ["crossfit", "hybrid", "functional"] as const;
 export type ProfilKey = (typeof PROFILS)[number];
 
+export const WEEKDAYS = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"] as const;
+const weekdaySchema = z.enum(WEEKDAYS);
+
 const dureeSchema = z.union([z.number(), z.string()]);
 
 const exerciceSchema = z.object({
@@ -53,6 +56,9 @@ export const importSchema = z.object({
     type: z.enum(["chargee", "realisation", "deload"]),
     duree_totale_min: z.number().positive().optional(),
     note_progression_semaine: z.string().optional(),
+    ordre_seances: z.array(z.string()).optional(),
+    // { "slot1": "lun", "slot2": "mar", ... } — pré-remplit Day.weekday à l'import.
+    jours: z.record(z.string(), weekdaySchema).optional(),
   }),
   seances: z.array(seanceSchema).min(1, "aucune séance"),
   controles_anti_monotonie: z.record(z.string(), z.unknown()),

@@ -12,6 +12,19 @@ export function repsAsNumber(reps: string): number | null {
   return m ? parseInt(m[1], 10) : null;
 }
 
+/** "R 60''" -> 60 ; "R 2'" -> 120 ; "R 2-3'" -> 150 (moyenne) ; sinon null. */
+export function parseRestSeconds(repos?: string | null): number | null {
+  if (!repos) return null;
+  const m = repos.match(/(\d+(?:[.,]\d+)?)\s*(?:[-–]\s*(\d+(?:[.,]\d+)?)\s*)?('{1,2}|sec|min|s|m)/i);
+  if (!m) return null;
+  const a = parseFloat(m[1].replace(",", "."));
+  const b = m[2] ? parseFloat(m[2].replace(",", ".")) : a;
+  const avg = (a + b) / 2;
+  const unit = m[3].toLowerCase();
+  const seconds = unit === "'" || unit === "min" || unit === "m" ? avg * 60 : avg;
+  return Math.round(seconds);
+}
+
 export function formatDateFr(d: Date): string {
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" });
 }

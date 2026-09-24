@@ -24,7 +24,13 @@ function crossfitWeek() {
   return {
     profil: "crossfit",
     bloc: { numero: 2, duree_semaines: 6, structure: "5+1", focus_progression: "charge" },
-    semaine: { numero_dans_le_bloc: 3, type: "chargee", duree_totale_min: 309 },
+    semaine: {
+      numero_dans_le_bloc: 3,
+      type: "chargee",
+      duree_totale_min: 309,
+      ordre_seances: ["slot1", "slot2", "slot3", "slot4"],
+      jours: { slot1: "lun", slot2: "mar", slot3: "jeu", slot4: "ven" },
+    },
     seances: [
       seance(1, 1, "FORCE — DEADLIFT", 78),
       seance(2, 2, "HALTÉROPHILIE — SNATCH", 86),
@@ -85,6 +91,18 @@ describe("validateImport — cas valides", () => {
     const r = validateImport(crossfitWeek());
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.warnings).toEqual([]);
+  });
+
+  it("conserve semaine.jours (mapping slot -> jour de la semaine)", () => {
+    const r = validateImport(crossfitWeek());
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.data.semaine.jours).toEqual({ slot1: "lun", slot2: "mar", slot3: "jeu", slot4: "ven" });
+  });
+
+  it("rejette une valeur de jour invalide dans semaine.jours", () => {
+    const w = crossfitWeek();
+    w.semaine.jours = { slot1: "lundi" } as unknown as typeof w.semaine.jours;
+    expect(validateImport(w).ok).toBe(false);
   });
 
   it("accepte une semaine Functional valide (4 jours × 3 modules + tampon)", () => {

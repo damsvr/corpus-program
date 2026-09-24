@@ -44,3 +44,6 @@ next-env.d.ts
 .data
 !.env.example
 .data-dev.log
+
+# config local de l'outil (harness)
+.claude/

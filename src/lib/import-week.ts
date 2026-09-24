@@ -58,6 +58,7 @@ export async function importWeek(userId: string, data: ImportedWeek, opts: { rep
           jour: s.jour,
           slot: s.slot ?? null,
           jourType: s.jour_type === "tampon" ? "TAMPON" : "ENTRAINEMENT",
+          weekday: s.slot ? (data.semaine.jours?.[`slot${s.slot}`] ?? null) : null,
           dureeEstimeeMin: s.duree_estimee_min ? Math.round(s.duree_estimee_min) : null,
           titre: s.titre,
           blocs: {

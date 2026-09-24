@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, countSets, filterModule, getActiveProgram, getWeek, type DayFull } from "@/lib/program";
+import { WeekdaySelect } from "@/components/weekday-select";
 
 export const metadata = { title: "Aujourd'hui — Corpus Program" };
 
@@ -129,9 +130,12 @@ function DayCard({
   const hasModules = day.blocs.some((b) => b.module);
   return (
     <section className="rounded-3xl border border-line bg-card p-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="eyebrow !text-brand">Jour {day.jour}</p>
+          <div className="flex items-center gap-2">
+            <p className="eyebrow !text-brand">Jour {day.jour}</p>
+            <WeekdaySelect dayId={day.id} value={day.weekday} />
+          </div>
           <h2 className="mt-1 text-2xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           <p className="eyebrow mt-2">
             {day.blocs.length} blocs · {sets} séries

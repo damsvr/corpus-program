@@ -127,6 +127,10 @@ model Day {
   jour            Int
   slot            Int?
   jourType        JourType     @default(ENTRAINEMENT)
+  // Jour de la semaine choisi par l'athlète (lun|mar|mer|jeu|ven|sam|dim) —
+  // pré-rempli depuis semaine.jours de l'import, modifiable dans l'app
+  // ("L'ordre des jours s'adapte à ton emploi du temps").
+  weekday         String?
   dureeEstimeeMin Int?
   titre           String
   blocs           Bloc[]

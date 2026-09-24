@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { finishSession } from "../actions";
+import { parseRestSeconds } from "@/lib/format";
 
 export type RunnerExercice = {
   id: string;
@@ -24,11 +25,57 @@ export type RunnerBloc = {
 };
 
 type SetState = { kg: string; reps: string; done: boolean };
+type RestState = { endsAt: number; setIndex: number };
 
 const num = (s: string): number | null => {
   const v = parseFloat(s.replace(",", "."));
   return Number.isFinite(v) ? v : null;
 };
+
+function RestTimer({
+  endsAt,
+  now,
+  setIndex,
+  totalSets,
+  nextLabel,
+  onSkip,
+}: {
+  endsAt: number;
+  now: number;
+  setIndex: number;
+  totalSets: number;
+  nextLabel: string;
+  onSkip: () => void;
+}) {
+  const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
+  const mm = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const ss = String(remaining % 60).padStart(2, "0");
+  return (
+    <div className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent">
+            Repos · série {setIndex + 1} / {totalSets}
+          </p>
+          <p className="mt-1 text-[0.75rem] text-muted">
+            Prochaine : série {setIndex + 2} / {totalSets}
+            {nextLabel ? ` · ${nextLabel}` : ""}
+          </p>
+        </div>
+        <span className="font-mono text-3xl font-bold tabular-nums text-accent">
+          {mm}:{ss}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={onSkip}
+        className="mt-3 w-full rounded-full border border-accent/40 py-2 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent"
+      >
+        Passer le repos
+      </button>
+    </div>
+  );
+}
 
 export function SessionRunner({
   dayId,
@@ -55,10 +102,25 @@ export function SessionRunner({
     ),
   );
 
+  const [rest, setRest] = useState<Record<string, RestState | undefined>>({});
+
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
+
+  // Purge les repos écoulés pour ne pas garder un état obsolète.
+  useEffect(() => {
+    setRest((r) => {
+      const next: typeof r = {};
+      let changed = false;
+      for (const [id, v] of Object.entries(r)) {
+        if (v && v.endsAt > now) next[id] = v;
+        else changed = true;
+      }
+      return changed ? next : r;
+    });
+  }, [now]);
 
   const elapsed = Math.floor((now - startedAt) / 1000);
   const mm = String(Math.floor(elapsed / 60)).padStart(2, "0");
@@ -69,6 +131,25 @@ export function SessionRunner({
 
   const update = (id: string, i: number, patch: Partial<SetState>) =>
     setState((s) => ({ ...s, [id]: s[id].map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
+
+  const toggleDone = (ex: RunnerExercice, i: number) => {
+    const wasDone = state[ex.id][i].done;
+    update(ex.id, i, { done: !wasDone });
+    if (!wasDone) {
+      const restSeconds = parseRestSeconds(ex.repos);
+      const isLastSet = i === ex.sets - 1;
+      if (restSeconds && !isLastSet) {
+        setRest((r) => ({ ...r, [ex.id]: { endsAt: Date.now() + restSeconds * 1000, setIndex: i } }));
+      }
+    } else {
+      setRest((r) => {
+        const cur = r[ex.id];
+        if (!cur || cur.setIndex !== i) return r;
+        const { [ex.id]: _drop, ...next } = r;
+        return next;
+      });
+    }
+  };
 
   const finish = () =>
     start(async () => {
@@ -144,7 +225,7 @@ export function SessionRunner({
                       <button
                         type="button"
                         aria-pressed={s.done}
-                        onClick={() => update(e.id, i, { done: !s.done })}
+                        onClick={() => toggleDone(e, i)}
                         className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
                           s.done ? "grad-accent text-black" : "border border-line text-muted"
                         }`}
@@ -154,6 +235,21 @@ export function SessionRunner({
                     </li>
                   ))}
                 </ul>
+                {rest[e.id] && (
+                  <RestTimer
+                    endsAt={rest[e.id]!.endsAt}
+                    now={now}
+                    setIndex={rest[e.id]!.setIndex}
+                    totalSets={e.sets}
+                    nextLabel={[e.notation, e.charge].filter(Boolean).join(" · ")}
+                    onSkip={() =>
+                      setRest((r) => {
+                        const { [e.id]: _drop, ...next } = r;
+                        return next;
+                      })
+                    }
+                  />
+                )}
               </div>
             ))}
           </div>
