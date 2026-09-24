@@ -1,4 +1,4 @@
-import type { ModuleType, Prisma, ProfileType } from "@prisma/client";
+import type { ModuleType, Prisma, ProfileType, User } from "@prisma/client";
 import { db } from "@/lib/db";
 import { parseNotation } from "@/lib/format";
 
@@ -14,6 +14,17 @@ const weekInclude = {
 export type WeekFull = Prisma.WeekGetPayload<{ include: typeof weekInclude }>;
 export type DayFull = WeekFull["days"][number];
 export type BlocFull = DayFull["blocs"][number];
+
+/**
+ * Le COACH possède sa programmation ; un ATHLETE suit celle du coach (lecture
+ * seule) tout en gardant son propre suivi (séances, historique, PR).
+ * S'il n'y a pas encore de coach en base, l'athlète retombe sur lui-même.
+ */
+export async function programOwnerId(user: User): Promise<string> {
+  if (user.role === "COACH") return user.id;
+  const coach = await db.user.findFirst({ where: { role: "COACH" }, select: { id: true } });
+  return coach?.id ?? user.id;
+}
 
 export async function getActiveProgram(userId: string, profile: ProfileType) {
   return db.program.findFirst({

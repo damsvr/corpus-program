@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { JOURS, MODULE_META, PROFILE_META } from "@/lib/profiles";
-import { MODULES, filterModule, getActiveProgram, getWeek } from "@/lib/program";
+import { MODULES, filterModule, getActiveProgram, getWeek, programOwnerId } from "@/lib/program";
 import { BlocCard } from "@/components/bloc-card";
 import { WeekdaySelect } from "@/components/weekday-select";
 
@@ -22,17 +22,25 @@ export default async function ProgrammePage({
   const sp = await searchParams;
   const user = await requireUser();
   const meta = PROFILE_META[user.activeProfile];
-  const program = await getActiveProgram(user.id, user.activeProfile);
+  const isCoach = user.role === "COACH";
+  const ownerId = await programOwnerId(user);
+  const program = await getActiveProgram(ownerId, user.activeProfile);
 
   if (!program || program.weeks.length === 0) {
     return (
       <div className="space-y-6">
         <p className="eyebrow">Programmation</p>
         <h1 className="text-3xl font-extrabold uppercase">{meta.label}</h1>
-        <p className="text-muted">Aucune semaine importée pour ce profil.</p>
-        <Link href="/import" className="grad-accent inline-block rounded-full px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-black">
-          Importer une semaine
-        </Link>
+        {isCoach ? (
+          <>
+            <p className="text-muted">Aucune semaine importée pour ce profil.</p>
+            <Link href="/import" className="grad-accent inline-block rounded-full px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-black">
+              Importer une semaine
+            </Link>
+          </>
+        ) : (
+          <p className="text-muted">Ton coach n&apos;a pas encore publié de programme pour ce profil.</p>
+        )}
       </div>
     );
   }
@@ -85,7 +93,9 @@ export default async function ProgrammePage({
                 Jour {day.jour} · {day.jourType === "TAMPON" ? "Jour tampon" : "Séance"}
                 {day.dureeEstimeeMin ? ` · ≈ ${day.dureeEstimeeMin} min` : ""}
               </p>
-              {day.jourType !== "TAMPON" && <WeekdaySelect dayId={day.id} value={day.weekday} />}
+              {day.jourType !== "TAMPON" && (
+                <WeekdaySelect dayId={day.id} value={day.weekday} readOnly={!isCoach} />
+              )}
             </div>
             <h2 className="mt-1 text-3xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           </div>

@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { signIn } from "@/auth";
 import { db } from "@/lib/db";
+import { isCoachEmail } from "@/lib/roles";
 
 export type FormState = { error?: string } | undefined;
 
@@ -55,6 +56,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
       email,
       passwordHash,
       name: parsed.data.name,
+      role: isCoachEmail(email) ? "COACH" : "ATHLETE",
       prs: { create: {} },
       athlete: { create: {} },
     },

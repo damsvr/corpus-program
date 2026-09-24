@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { programOwnerId } from "@/lib/program";
 
 const payload = z.object({
   dayId: z.string().min(1),
@@ -24,9 +25,10 @@ export async function finishSession(input: FinishInput): Promise<{ ok: boolean; 
   const parsed = payload.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Données de séance invalides" };
   const { dayId, module, startedAt, logs } = parsed.data;
+  const ownerId = await programOwnerId(user);
 
   const day = await db.day.findFirst({
-    where: { id: dayId, week: { program: { userId: user.id } } },
+    where: { id: dayId, week: { program: { userId: ownerId } } },
     include: { blocs: { include: { exercices: { select: { id: true } } } } },
   });
   if (!day) return { ok: false, error: "Séance introuvable" };

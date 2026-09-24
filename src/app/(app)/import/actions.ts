@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { validateImport } from "@/lib/import-schema";
 import { ImportConflictError, importWeek } from "@/lib/import-week";
-import { requireUser } from "@/lib/session";
+import { requireCoach, requireUser } from "@/lib/session";
 
 export type ImportPreview =
   | {
@@ -52,7 +52,7 @@ export async function confirmImport(
   text: string,
   replace: boolean,
 ): Promise<{ ok: true; numero: number } | { ok: false; errors: string[] }> {
-  const user = await requireUser();
+  const user = await requireCoach();
   const p = parse(text);
   if (!p.ok) return { ok: false, errors: [p.error] };
   const r = validateImport(p.value);

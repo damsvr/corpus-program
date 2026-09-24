@@ -4,8 +4,27 @@ import { useTransition } from "react";
 import { JOURS } from "@/lib/profiles";
 import { setDayWeekday } from "@/app/(app)/aujourdhui/actions";
 
-export function WeekdaySelect({ dayId, value }: { dayId: string; value: string | null }) {
+export function WeekdaySelect({
+  dayId,
+  value,
+  readOnly = false,
+}: {
+  dayId: string;
+  value: string | null;
+  /** Programmation partagée : seul le coach peut la modifier. */
+  readOnly?: boolean;
+}) {
   const [pending, start] = useTransition();
+
+  if (readOnly) {
+    const label = JOURS.find((j) => j.key === value)?.label ?? "Jour libre";
+    return (
+      <span className="rounded-full border border-line px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-muted">
+        {label}
+      </span>
+    );
+  }
+
   return (
     <select
       aria-label="Jour de la semaine"

@@ -1,8 +1,10 @@
+import { requireCoach } from "@/lib/session";
 import { ImportForm } from "./import-form";
 
 export const metadata = { title: "Importer — Corpus Program" };
 
-export default function ImportPage() {
+export default async function ImportPage() {
+  await requireCoach();
   return (
     <div className="space-y-6">
       <div>

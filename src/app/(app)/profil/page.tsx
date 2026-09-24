@@ -36,7 +36,7 @@ export default async function ProfilPage() {
   return (
     <div className="space-y-10">
       <div>
-        <p className="eyebrow !text-brand">Athlète</p>
+        <p className="eyebrow !text-brand">{user.role === "COACH" ? "Coach" : "Athlète"}</p>
         <h1 className="mt-1 text-4xl font-extrabold uppercase">{user.name || "Athlète"}</h1>
         <p className="mt-1 text-muted">{user.email}</p>
       </div>
@@ -180,9 +180,11 @@ export default async function ProfilPage() {
 
       <section className="space-y-3">
         <p className="eyebrow">Compte</p>
-        <Link href="/import" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
-          Importer une semaine →
-        </Link>
+        {user.role === "COACH" && (
+          <Link href="/import" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
+            Importer une semaine →
+          </Link>
+        )}
         <form action={logout}>
           <button type="submit" className="w-full rounded-full border border-line px-6 py-4 text-sm font-bold uppercase tracking-[0.14em] text-muted">
             Déconnexion

@@ -3,7 +3,7 @@ import type { ModuleType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META, PROFILE_META } from "@/lib/profiles";
-import { MODULES, countSets, filterModule, getActiveProgram, getWeek, type DayFull } from "@/lib/program";
+import { MODULES, countSets, filterModule, getActiveProgram, getWeek, programOwnerId, type DayFull } from "@/lib/program";
 import { WeekdaySelect } from "@/components/weekday-select";
 
 export const metadata = { title: "Aujourd'hui — Corpus Program" };
@@ -14,7 +14,8 @@ const startBtn =
 export default async function AujourdhuiPage() {
   const user = await requireUser();
   const meta = PROFILE_META[user.activeProfile];
-  const program = await getActiveProgram(user.id, user.activeProfile);
+  const ownerId = await programOwnerId(user);
+  const program = await getActiveProgram(ownerId, user.activeProfile);
   const week = program ? await getWeek(program.id) : null;
 
   if (!week) {
@@ -22,12 +23,18 @@ export default async function AujourdhuiPage() {
       <div className="space-y-6">
         <p className="eyebrow">Profil {meta.label}</p>
         <h1 className="text-3xl font-extrabold">Pas encore de programme</h1>
-        <p className="text-muted">
-          Prépare ta semaine avec l&apos;agent {meta.label}, relis-la, puis importe le JSON validé.
-        </p>
-        <Link href="/import" className={startBtn}>
-          Importer une semaine
-        </Link>
+        {user.role === "COACH" ? (
+          <>
+            <p className="text-muted">
+              Prépare ta semaine avec l&apos;agent {meta.label}, relis-la, puis importe le JSON validé.
+            </p>
+            <Link href="/import" className={startBtn}>
+              Importer une semaine
+            </Link>
+          </>
+        ) : (
+          <p className="text-muted">Ton coach n&apos;a pas encore publié de programme pour ce profil.</p>
+        )}
       </div>
     );
   }
@@ -81,7 +88,7 @@ export default async function AujourdhuiPage() {
       <p className="eyebrow">Séances de la semaine — dans l&apos;ordre que tu veux</p>
 
       {training.map((day) => (
-        <DayCard key={day.id} day={day} isDone={isDone} />
+        <DayCard key={day.id} day={day} isDone={isDone} isCoach={user.role === "COACH"} />
       ))}
 
       {tampon && (
@@ -122,9 +129,11 @@ export default async function AujourdhuiPage() {
 function DayCard({
   day,
   isDone,
+  isCoach,
 }: {
   day: DayFull;
   isDone: (dayId: string, module: ModuleType | null) => boolean;
+  isCoach: boolean;
 }) {
   const sets = day.blocs.reduce((a, b) => a + countSets(b), 0);
   const hasModules = day.blocs.some((b) => b.module);
@@ -134,7 +143,7 @@ function DayCard({
         <div>
           <div className="flex items-center gap-2">
             <p className="eyebrow !text-brand">Jour {day.jour}</p>
-            <WeekdaySelect dayId={day.id} value={day.weekday} />
+            <WeekdaySelect dayId={day.id} value={day.weekday} readOnly={!isCoach} />
           </div>
           <h2 className="mt-1 text-2xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           <p className="eyebrow mt-2">

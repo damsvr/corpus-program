@@ -13,6 +13,8 @@ const schema = z.object({
 
 export async function setDayWeekday(dayId: string, weekday: string | null) {
   const user = await requireUser();
+  // Programmation partagée : seul le coach peut la replanifier.
+  if (user.role !== "COACH") return;
   const parsed = schema.safeParse({ dayId, weekday });
   if (!parsed.success) return;
 

@@ -13,6 +13,11 @@ enum ProfileType {
   FUNCTIONAL
 }
 
+enum Role {
+  COACH
+  ATHLETE
+}
+
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
@@ -49,6 +54,9 @@ model User {
   passwordHash       String
   name               String?
   createdAt          DateTime           @default(now())
+  // COACH (toi) importe/possède la programmation ; ATHLETE (tes clients) la
+  // suit en lecture seule et garde son propre suivi (séances, historique, PR).
+  role               Role               @default(ATHLETE)
   // Prêt pour la facturation (Stripe viendra plus tard) — non exploité en v1.
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   trialEndsAt        DateTime?

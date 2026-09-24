@@ -9,3 +9,10 @@ export async function requireUser() {
   if (!user) redirect("/login");
   return user;
 }
+
+/** Import de programmation : réservé au coach (propriétaire du contenu partagé). */
+export async function requireCoach() {
+  const user = await requireUser();
+  if (user.role !== "COACH") redirect("/aujourdhui");
+  return user;
+}
