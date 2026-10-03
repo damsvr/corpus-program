@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, countSets, filterModule, getActiveProgram, getWeek, programOwnerId, type DayFull } from "@/lib/program";
+import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 
 export const metadata = { title: "Aujourd'hui — Corpus Program" };
@@ -116,9 +117,9 @@ export default async function AujourdhuiPage() {
             <p className="mt-4 text-sm text-brand">Tout est réalisé : le tampon = mobilité et point faible.</p>
           )}
           <div className="mt-5">
-            <Link href={`/seance/${tampon.id}`} className={startBtn}>
+            <StartLink href={`/seance/${tampon.id}`} className={startBtn}>
               Démarrer
-            </Link>
+            </StartLink>
           </div>
         </section>
       )}
@@ -175,12 +176,12 @@ function DayCard({
                 {finished ? (
                   <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand">✓ Fait</span>
                 ) : (
-                  <Link
+                  <StartLink
                     href={`/seance/${day.id}?module=${m}`}
                     className="grad-accent rounded-full px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.14em] text-black"
                   >
                     Démarrer
-                  </Link>
+                  </StartLink>
                 )}
               </li>
             );
@@ -203,9 +204,9 @@ function DayCard({
             {isDone(day.id, null) ? (
               <span className="text-xs font-bold uppercase tracking-[0.14em] text-brand">✓ Séance réalisée</span>
             ) : (
-              <Link href={`/seance/${day.id}`} className={startBtn}>
+              <StartLink href={`/seance/${day.id}`} className={startBtn}>
                 Démarrer
-              </Link>
+              </StartLink>
             )}
           </div>
         </>

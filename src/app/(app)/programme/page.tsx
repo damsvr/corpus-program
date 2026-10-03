@@ -3,6 +3,7 @@ import { requireUser } from "@/lib/session";
 import { JOURS, MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, filterModule, getActiveProgram, getWeek, programOwnerId } from "@/lib/program";
 import { BlocCard } from "@/components/bloc-card";
+import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 
 const weekdayLabel = (key: string | null) => JOURS.find((j) => j.key === key)?.label ?? null;
@@ -127,12 +128,12 @@ export default async function ProgrammePage({
             day.blocs.map((b) => <BlocCard key={b.id} bloc={b} />)
           )}
 
-          <Link
+          <StartLink
             href={`/seance/${day.id}`}
             className="grad-accent block rounded-full px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-black"
           >
             Démarrer
-          </Link>
+          </StartLink>
         </div>
       )}
     </div>

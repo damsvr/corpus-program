@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { extractScoreHint, formatClock, parseWodFormat, type WodProgram } from "@/lib/wod-format";
 import type { RunnerExercice } from "./runner";
+import { usePressGuard } from "./timers";
 
 function ExerciceRef({ e }: { e: RunnerExercice }) {
   return (
@@ -31,6 +32,7 @@ export function WodClock({
   exercices: RunnerExercice[];
   onComplete: (score: string | null) => void;
 }) {
+  const guard = usePressGuard();
   const program = parseWodFormat(formatEntete);
   const [phase, setPhase] = useState<"idle" | "running" | "score" | "done">("idle");
   const [startedAt, setStartedAt] = useState<number | null>(null);
@@ -66,6 +68,15 @@ export function WodClock({
     setStartedAt(null);
   };
 
+  // Retour à zéro après un WOD terminé (mauvais clic sur « Terminé ! », score à refaire…).
+  const relaunch = () => {
+    setPhase("idle");
+    setStartedAt(null);
+    setDoneScore(null);
+    setScoreInput("");
+    onComplete(null);
+  };
+
   const finishNow = () => {
     // For time / repli inconnu : le chrono lui-même est le score.
     const score = formatClock(elapsed);
@@ -97,7 +108,7 @@ export function WodClock({
   if (phase === "idle") {
     return (
       <div className="mt-3 space-y-4">
-        <button type="button" onClick={start} className={launchBtn}>
+        <button type="button" onClick={guard(start)} className={launchBtn}>
           Lancer le WOD
         </button>
         {reference}
@@ -110,6 +121,9 @@ export function WodClock({
       <div className="mt-3 rounded-2xl border border-brand/40 bg-brand/10 p-4 text-center">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-brand">WOD terminé ✓</p>
         {doneScore && <p className="mt-1 text-2xl font-extrabold text-brand">{doneScore}</p>}
+        <button type="button" onClick={guard(relaunch)} className={`${cancelLink} mt-2`}>
+          Relancer le chrono
+        </button>
       </div>
     );
   }
@@ -128,7 +142,7 @@ export function WodClock({
           placeholder={hint ? `ex. ${hint}` : "ex. 4 rounds + 12 reps"}
           className="w-full rounded-xl border border-line bg-bg/70 px-4 py-3 text-center text-lg outline-none focus:border-brand"
         />
-        <button type="button" onClick={validateScore} className={launchBtn}>
+        <button type="button" onClick={guard(validateScore)} className={launchBtn}>
           Valider le score
         </button>
       </div>
@@ -158,18 +172,18 @@ export function WodClock({
       )}
 
       {(program.kind === "fortime" || program.kind === "unknown") && (
-        <button type="button" onClick={finishNow} className={launchBtn}>
+        <button type="button" onClick={guard(finishNow)} className={launchBtn}>
           Terminé !
         </button>
       )}
       {(program.kind === "emom" || program.kind === "interval") && (
-        <button type="button" onClick={validateEmptyDone} className={ghostBtn}>
+        <button type="button" onClick={guard(validateEmptyDone)} className={ghostBtn}>
           Terminer maintenant
         </button>
       )}
 
       {reference}
-      <button type="button" onClick={cancel} className={cancelLink}>
+      <button type="button" onClick={guard(cancel)} className={cancelLink}>
         Annuler ce lancement
       </button>
     </div>

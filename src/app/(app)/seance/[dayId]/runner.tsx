@@ -1,11 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { finishSession } from "../actions";
-import { classifyBloc, parseNotation, parseRestSeconds } from "@/lib/format";
+import { classifyBloc, isPerSide, parseHoldSeconds, parseNotation, parseRestSeconds } from "@/lib/format";
+import { restGroups } from "@/lib/rest-plan";
+import { shortExerciceName } from "@/lib/share";
 import { formatClock, resolveBlocRounds } from "@/lib/wod-format";
 import { WodClock } from "./wod-clock";
+import {
+  BlocIntervalClock,
+  HoldTimer,
+  HoldTimerList,
+  REST_GRACE_MS,
+  RestTimer,
+  WarmupTimer,
+  type Rest,
+} from "./timers";
 
 export type RunnerExercice = {
   id: string;
@@ -28,7 +39,6 @@ export type RunnerBloc = {
 };
 
 type SetState = { kg: string; reps: string; done: boolean };
-type RestState = { endsAt: number; setIndex: number };
 
 const num = (s: string): number | null => {
   const v = parseFloat(s.replace(",", "."));
@@ -45,141 +55,44 @@ function parseDureeMinutes(v: string | null): number | null {
   return (a + b) / 2;
 }
 
-function RestTimer({
-  endsAt,
-  now,
-  setIndex,
-  totalSets,
-  nextLabel,
-  onSkip,
-}: {
-  endsAt: number;
-  now: number;
-  setIndex: number;
-  totalSets: number;
-  nextLabel: string;
-  onSkip: () => void;
-}) {
-  const remaining = Math.max(0, Math.ceil((endsAt - now) / 1000));
-  return (
-    <div className="mt-3 rounded-2xl border border-accent/40 bg-accent/10 p-4">
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent">
-            Repos · série {setIndex + 1} / {totalSets}
-          </p>
-          <p className="mt-1 text-[0.75rem] text-muted">
-            Prochaine : série {setIndex + 2} / {totalSets}
-            {nextLabel ? ` · ${nextLabel}` : ""}
-          </p>
-        </div>
-        <span className="font-mono text-3xl font-bold tabular-nums text-accent">{formatClock(remaining)}</span>
-      </div>
-      <button
-        type="button"
-        onClick={onSkip}
-        className="mt-3 w-full rounded-full border border-accent/40 py-2 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent"
-      >
-        Passer le repos
-      </button>
-    </div>
-  );
+const isWorkBloc = (b: RunnerBloc) => {
+  const k = classifyBloc(b.nom, b.isWod);
+  return k === "travail" || k === "wod";
+};
+
+const noopSubscribe = () => () => {};
+
+/** Faux tant que le JS de la page n'a pas hydraté : les boutons ne répondent pas avant, autant le montrer. */
+function useHydrated(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
 }
 
-/** Chrono global d'un bloc échauffement / préparation ciblée — pas de séries à valider. */
-function WarmupTimer({ durationMin }: { durationMin: number | null }) {
-  const totalSeconds = durationMin ? Math.round(durationMin * 60) : null;
-  const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-
+/** Garde l'écran allumé pendant la séance : les chronos restent visibles et les vibrations de fin de repos partent. */
+function useWakeLock() {
   useEffect(() => {
-    if (phase !== "running") return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [phase]);
-
-  const elapsed = startedAt ? Math.floor((now - startedAt) / 1000) : 0;
-  const display = totalSeconds !== null ? Math.max(0, totalSeconds - elapsed) : elapsed;
-
-  useEffect(() => {
-    if (phase === "running" && totalSeconds !== null && elapsed >= totalSeconds) setPhase("done");
-  }, [phase, elapsed, totalSeconds]);
-
-  return (
-    <div className="mt-4 rounded-2xl border border-line bg-bg/60 p-5 text-center">
-      <p className={`font-mono text-4xl font-extrabold tabular-nums ${phase === "done" ? "text-brand" : "text-accent"}`}>
-        {formatClock(phase === "idle" ? (totalSeconds ?? 0) : display)}
-      </p>
-      <p className="mt-1 eyebrow">
-        {phase === "done" ? "Terminé ✓" : totalSeconds !== null ? `Durée cible ${durationMin}'` : "Chrono"}
-      </p>
-      <button
-        type="button"
-        onClick={() => {
-          if (phase === "running") {
-            setPhase("idle");
-            setStartedAt(null);
-          } else {
-            setStartedAt(Date.now());
-            setNow(Date.now());
-            setPhase("running");
-          }
-        }}
-        className={
-          phase === "running"
-            ? "mt-3 w-full rounded-full border border-line py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-muted"
-            : "grad-accent mt-3 w-full rounded-full py-2.5 text-xs font-bold uppercase tracking-[0.14em] text-black"
-        }
-      >
-        {phase === "running" ? "Réinitialiser" : "Lancer"}
-      </button>
-    </div>
-  );
-}
-
-/** Chrono compact par mouvement, pour les tenues chronométrées d'un bloc mobilité. */
-function HoldTimer({ seconds }: { seconds: number }) {
-  const [phase, setPhase] = useState<"idle" | "running" | "done">("idle");
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (phase !== "running") return;
-    const t = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, [phase]);
-
-  const elapsed = startedAt ? Math.floor((now - startedAt) / 1000) : 0;
-  const remaining = Math.max(0, seconds - elapsed);
-
-  useEffect(() => {
-    if (phase === "running" && remaining === 0) setPhase("done");
-  }, [phase, remaining]);
-
-  return (
-    <div className="mt-1.5 flex items-center gap-2">
-      <span className={`font-mono text-sm font-bold tabular-nums ${phase === "done" ? "text-brand" : "text-accent"}`}>
-        {formatClock(phase === "idle" ? seconds : remaining)}
-      </span>
-      <button
-        type="button"
-        onClick={() => {
-          if (phase === "running") {
-            setPhase("idle");
-            setStartedAt(null);
-          } else {
-            setStartedAt(Date.now());
-            setNow(Date.now());
-            setPhase("running");
-          }
-        }}
-        className="rounded-full border border-accent/40 px-3 py-1 text-[0.62rem] font-bold uppercase tracking-[0.1em] text-accent"
-      >
-        {phase === "running" ? "Reset" : phase === "done" ? "Relancer" : "Lancer"}
-      </button>
-    </div>
-  );
+    let lock: WakeLockSentinel | null = null;
+    let cancelled = false;
+    const request = async () => {
+      try {
+        const l = await navigator.wakeLock?.request("screen");
+        if (!l) return;
+        if (cancelled) void l.release();
+        else lock = l;
+      } catch {
+        // refus (économie d'énergie, onglet masqué) : sans effet sur la séance
+      }
+    };
+    void request();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void request();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release().catch(() => {});
+    };
+  }, []);
 }
 
 export function SessionRunner({
@@ -218,28 +131,31 @@ export function SessionRunner({
     ),
   );
 
-  const [rest, setRest] = useState<Record<string, RestState | undefined>>({});
-  const [blocRest, setBlocRest] = useState<Record<string, RestState | undefined>>({});
+  // Repos en cours : clé = id du bloc (bloc en rounds) ou du premier exercice du groupe.
+  const [rests, setRests] = useState<Record<string, Rest | undefined>>({});
+  // Départ du chrono « Every X:XX » d'un bloc en rounds, par id de bloc.
+  const [blocStarts, setBlocStarts] = useState<Record<string, number | undefined>>({});
   const [wodScores, setWodScores] = useState<Record<string, string | null>>({});
+
+  useWakeLock();
+  const hydrated = useHydrated();
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
 
-  // Purge les repos écoulés pour ne pas garder un état obsolète.
+  // « Repos terminé » reste affiché un moment avant de disparaître seul.
   useEffect(() => {
-    const purge = (r: Record<string, RestState | undefined>) => {
+    setRests((r) => {
       const next: typeof r = {};
       let changed = false;
       for (const [id, v] of Object.entries(r)) {
-        if (v && v.endsAt > now) next[id] = v;
+        if (v && v.endsAt + REST_GRACE_MS > now) next[id] = v;
         else changed = true;
       }
       return changed ? next : r;
-    };
-    setRest(purge);
-    setBlocRest(purge);
+    });
   }, [now]);
 
   const elapsed = Math.floor((now - startedAt) / 1000);
@@ -250,46 +166,76 @@ export function SessionRunner({
   const update = (id: string, i: number, patch: Partial<SetState>) =>
     setState((s) => ({ ...s, [id]: s[id].map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
 
-  // Bloc structuré en rounds ("4 rounds, Every 3:00", EMOM...) : le repos
-  // s'enclenche automatiquement pour tout le bloc dès que le DERNIER
-  // mouvement de la série est validé — pas un repos par exercice.
-  const toggleBlocDone = (b: RunnerBloc, ex: RunnerExercice, i: number, totalRounds: number, restSeconds: number | null) => {
-    const wasDone = state[ex.id][i].done;
-    update(ex.id, i, { done: !wasDone });
-    const isLastExercice = b.exercices[b.exercices.length - 1].id === ex.id;
-    if (!isLastExercice) return;
-    const isLastRound = i === totalRounds - 1;
-    if (!wasDone && restSeconds && !isLastRound) {
-      setBlocRest((r) => ({ ...r, [b.id]: { endsAt: Date.now() + restSeconds * 1000, setIndex: i } }));
-    } else if (wasDone) {
-      setBlocRest((r) => {
-        const cur = r[b.id];
-        if (!cur || cur.setIndex !== i) return r;
-        const { [b.id]: _drop, ...next } = r;
-        return next;
-      });
-    }
-  };
+  const dropRest = (key: string) =>
+    setRests((r) => {
+      const { [key]: _drop, ...next } = r;
+      return next;
+    });
 
-  // Séries droites (notation "N×M" propre à l'exercice) : repos entre
-  // chaque série du même mouvement.
-  const toggleDone = (ex: RunnerExercice, i: number) => {
+  // La charge n'est rappelée que si elle est courte ("70% TM"), pas pour un texte libre du coach.
+  const nameWithLoad = (e: RunnerExercice) =>
+    [shortExerciceName(e.nom), parseNotation(e.notation).reps, e.charge && e.charge.length <= 16 ? e.charge : null]
+      .filter(Boolean)
+      .join(" ");
+
+  // Valide / dévalide une série. Le repos s'enclenche automatiquement quand le
+  // DERNIER mouvement de la série (round, ou groupe en superset) est validé.
+  const toggleSet = (blocIndex: number, b: RunnerBloc, ex: RunnerExercice, i: number) => {
     const wasDone = state[ex.id][i].done;
     update(ex.id, i, { done: !wasDone });
-    if (!wasDone) {
-      const restSeconds = parseRestSeconds(ex.repos);
-      const isLastSet = i === ex.sets - 1;
-      if (restSeconds && !isLastSet) {
-        setRest((r) => ({ ...r, [ex.id]: { endsAt: Date.now() + restSeconds * 1000, setIndex: i } }));
-      }
-    } else {
-      setRest((r) => {
-        const cur = r[ex.id];
-        if (!cur || cur.setIndex !== i) return r;
-        const { [ex.id]: _drop, ...next } = r;
+
+    const { totalRounds, restSeconds: intervalSeconds } = resolveBlocRounds(b.formatEntete);
+    const groups = restGroups(b.exercices);
+    const group = groups.find((g) => g.some((e) => e.id === ex.id)) ?? [ex];
+    const restKey = totalRounds > 0 ? b.id : group[0].id;
+
+    if (wasDone) {
+      setRests((r) => {
+        if (r[restKey]?.setIndex !== i) return r;
+        const { [restKey]: _drop, ...next } = r;
         return next;
       });
+      return;
     }
+
+    const nowMs = Date.now();
+
+    if (totalRounds > 0) {
+      if (ex.id !== b.exercices[b.exercices.length - 1].id || !intervalSeconds || i >= totalRounds - 1) return;
+      const blocStart = blocStarts[b.id];
+      const endsAt = blocStart ? Math.max(nowMs, blocStart + (i + 1) * intervalSeconds * 1000) : nowMs + intervalSeconds * 1000;
+      setRests((r) => ({
+        ...r,
+        [restKey]: {
+          endsAt,
+          setIndex: i,
+          title: `Repos · série ${i + 1} / ${totalRounds}`,
+          next: `Prochaine : série ${i + 2} / ${totalRounds} · ${b.exercices.map((e) => shortExerciceName(e.nom)).join(" + ")}`,
+        },
+      }));
+      return;
+    }
+
+    if (group[group.length - 1].id !== ex.id) return;
+    const seconds = parseRestSeconds(group[0].repos);
+    if (!seconds) return;
+    const groupSets = Math.max(...group.map((e) => state[e.id].length));
+    const nextGroup = groups[groups.indexOf(group) + 1];
+    const nextBloc = blocs.slice(blocIndex + 1).find(isWorkBloc);
+    let next: string;
+    if (i < groupSets - 1) next = `Prochaine : série ${i + 2} / ${groupSets} · ${group.map(nameWithLoad).join(" + ")}`;
+    else if (nextGroup) next = `Ensuite : ${nextGroup.map(nameWithLoad).join(" + ")}`;
+    else if (nextBloc) next = `Ensuite : ${nextBloc.nom}`;
+    else return;
+    setRests((r) => ({
+      ...r,
+      [restKey]: {
+        endsAt: nowMs + seconds * 1000,
+        setIndex: i,
+        title: groupSets > 1 ? `Repos · série ${i + 1} / ${groupSets}` : "Repos",
+        next,
+      },
+    }));
   };
 
   const finish = () =>
@@ -311,10 +257,13 @@ export function SessionRunner({
     });
 
   const input =
-    "w-16 rounded-lg border border-line bg-bg/70 px-2 py-2 text-center text-sm outline-none focus:border-brand";
+    "w-16 rounded-lg border border-line bg-bg/60 px-2 py-2 text-center text-sm outline-none focus:border-brand";
 
   return (
-    <div className="space-y-5">
+    <div
+      data-ready={hydrated}
+      className="space-y-5 transition-opacity data-[ready=false]:pointer-events-none data-[ready=false]:opacity-60"
+    >
       <div className="sticky top-0 z-30 -mx-5 flex items-center justify-between border-b border-line bg-bg/95 px-5 py-3 backdrop-blur">
         <span className="font-mono text-2xl font-bold tabular-nums text-brand">{formatClock(elapsed)}</span>
         <span className="eyebrow">
@@ -322,7 +271,7 @@ export function SessionRunner({
         </span>
       </div>
 
-      {blocs.map((b) => {
+      {blocs.map((b, blocIndex) => {
         const kind = classifyBloc(b.nom, b.isWod);
         return (
           <section key={b.id} className="rounded-3xl border border-line bg-card p-5">
@@ -371,7 +320,8 @@ export function SessionRunner({
             {kind === "mobilite" && (
               <ul className="mt-4 divide-y divide-line/70">
                 {b.exercices.map((e) => {
-                  const holdSeconds = parseRestSeconds(parseNotation(e.notation).reps);
+                  const n = parseNotation(e.notation);
+                  const holdSeconds = parseHoldSeconds(n.reps);
                   return (
                     <li key={e.id} className="py-3">
                       <div className="flex items-baseline justify-between gap-3">
@@ -381,7 +331,7 @@ export function SessionRunner({
                         </span>
                       </div>
                       {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
-                      {holdSeconds && <HoldTimer seconds={holdSeconds} />}
+                      {holdSeconds && <HoldTimerList seconds={holdSeconds} sets={n.sets} perSide={isPerSide(n.reps)} />}
                     </li>
                   );
                 })}
@@ -391,18 +341,37 @@ export function SessionRunner({
             {kind === "travail" &&
               (() => {
                 const { totalRounds, restSeconds } = resolveBlocRounds(b.formatEntete);
+                const groups = restGroups(b.exercices);
                 return (
                   <div className="mt-4 space-y-5">
-                    {totalRounds > 0 && <p className="eyebrow !text-accent">{totalRounds} séries</p>}
+                    {totalRounds > 0 && restSeconds && (
+                      <>
+                        <p className="eyebrow !text-accent">{totalRounds} séries</p>
+                        <BlocIntervalClock
+                          startedAt={blocStarts[b.id]}
+                          now={now}
+                          roundSeconds={restSeconds}
+                          totalRounds={totalRounds}
+                          onStart={() => setBlocStarts((s) => ({ ...s, [b.id]: Date.now() }))}
+                          onReset={() => {
+                            setBlocStarts((s) => ({ ...s, [b.id]: undefined }));
+                            dropRest(b.id);
+                          }}
+                        />
+                      </>
+                    )}
                     {b.exercices.map((e) => {
-                      const reps = parseNotation(e.notation).reps;
+                      const n = parseNotation(e.notation);
+                      const holdSeconds = parseHoldSeconds(n.reps);
                       const hasWeight = !!e.charge?.trim();
+                      const group = groups.find((g) => g.some((x) => x.id === e.id)) ?? [e];
+                      const showGroupRest = totalRounds === 0 && group[group.length - 1].id === e.id;
                       return (
                         <div key={e.id}>
                           <div className="flex items-baseline justify-between gap-3">
                             <span className="text-[0.95rem] font-medium">{e.nom}</span>
                             <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                              {[reps, e.charge, e.repos].filter(Boolean).join(" · ")}
+                              {[n.reps, e.charge, e.repos].filter(Boolean).join(" · ")}
                             </span>
                           </div>
                           {totalRounds === 0 && e.sets > 1 && (
@@ -422,20 +391,22 @@ export function SessionRunner({
                                     className={input}
                                   />
                                 )}
-                                <input
-                                  aria-label={`Répétitions série ${i + 1}`}
-                                  inputMode="numeric"
-                                  placeholder="reps"
-                                  value={s.reps}
-                                  onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
-                                  className={input}
-                                />
+                                {holdSeconds ? (
+                                  <HoldTimer seconds={holdSeconds} steps={isPerSide(n.reps) ? 2 : 1} className="" />
+                                ) : (
+                                  <input
+                                    aria-label={`Répétitions série ${i + 1}`}
+                                    inputMode="numeric"
+                                    placeholder="reps"
+                                    value={s.reps}
+                                    onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
+                                    className={input}
+                                  />
+                                )}
                                 <button
                                   type="button"
                                   aria-pressed={s.done}
-                                  onClick={() =>
-                                    totalRounds > 0 ? toggleBlocDone(b, e, i, totalRounds, restSeconds) : toggleDone(e, i)
-                                  }
+                                  onClick={() => toggleSet(blocIndex, b, e, i)}
                                   className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
                                     s.done ? "grad-accent text-black" : "border border-line text-muted"
                                   }`}
@@ -445,38 +416,14 @@ export function SessionRunner({
                               </li>
                             ))}
                           </ul>
-                          {totalRounds === 0 && rest[e.id] && (
-                            <RestTimer
-                              endsAt={rest[e.id]!.endsAt}
-                              now={now}
-                              setIndex={rest[e.id]!.setIndex}
-                              totalSets={e.sets}
-                              nextLabel={[reps, e.charge].filter(Boolean).join(" · ")}
-                              onSkip={() =>
-                                setRest((r) => {
-                                  const { [e.id]: _drop, ...next } = r;
-                                  return next;
-                                })
-                              }
-                            />
+                          {showGroupRest && rests[group[0].id] && (
+                            <RestTimer rest={rests[group[0].id]!} now={now} onSkip={() => dropRest(group[0].id)} />
                           )}
                         </div>
                       );
                     })}
-                    {totalRounds > 0 && blocRest[b.id] && (
-                      <RestTimer
-                        endsAt={blocRest[b.id]!.endsAt}
-                        now={now}
-                        setIndex={blocRest[b.id]!.setIndex}
-                        totalSets={totalRounds}
-                        nextLabel={b.exercices.map((e) => e.nom).join(" · ")}
-                        onSkip={() =>
-                          setBlocRest((r) => {
-                            const { [b.id]: _drop, ...next } = r;
-                            return next;
-                          })
-                        }
-                      />
+                    {totalRounds > 0 && rests[b.id] && (
+                      <RestTimer rest={rests[b.id]!} now={now} onSkip={() => dropRest(b.id)} />
                     )}
                   </div>
                 );

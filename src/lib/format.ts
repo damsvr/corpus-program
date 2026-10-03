@@ -2,8 +2,33 @@
 export function parseNotation(notation?: string | null): { sets: number; reps: string } {
   if (!notation) return { sets: 1, reps: "" };
   const m = notation.match(/^\s*(\d+)\s*[×xX]\s*(.+?)\s*$/);
-  if (!m) return { sets: 1, reps: notation.trim() };
-  return { sets: Math.min(parseInt(m[1], 10), 20), reps: m[2] };
+  if (m) return { sets: Math.min(parseInt(m[1], 10), 20), reps: m[2] };
+  // "3 sets" / "4 séries" : nombre de séries sans répétitions précisées.
+  const bare = notation.match(/^\s*(\d+)\s*(?:sets?|s[ée]ries?)\s*$/i);
+  if (bare) return { sets: Math.min(parseInt(bare[1], 10), 20), reps: "" };
+  return { sets: 1, reps: notation.trim() };
+}
+
+/**
+ * Durée d'une tenue chronométrée en secondes : "30''" -> 30 ; "20''/côté" -> 20 ;
+ * "2'" -> 120 ; "45 s" -> 45 ; "20-30''" -> 25. Les distances ("20m", "15 m/côté")
+ * et les répétitions ne sont jamais des durées — contrairement à parseRestSeconds,
+ * « m » n'est pas accepté ici.
+ */
+export function parseHoldSeconds(reps?: string | null): number | null {
+  if (!reps) return null;
+  const m = reps.trim().match(/^(\d+(?:[.,]\d+)?)(?:\s*[-–]\s*(\d+(?:[.,]\d+)?))?\s*(['’"″]{2}|sec\b|s\b|min\b|['’])/i);
+  if (!m) return null;
+  const a = parseFloat(m[1].replace(",", "."));
+  const b = m[2] ? parseFloat(m[2].replace(",", ".")) : a;
+  const unit = m[3].toLowerCase();
+  const isMinutes = unit === "min" || unit === "'" || unit === "’";
+  return Math.round(((a + b) / 2) * (isMinutes ? 60 : 1));
+}
+
+/** "30''/côté", "8/jambe" : l'exercice se fait de chaque côté. */
+export function isPerSide(reps?: string | null): boolean {
+  return !!reps && /\/\s*(?:côté|cote|jambe|bras|side|leg|arm)/i.test(reps);
 }
 
 /** Répétitions pré-remplies : entier simple, avec ou sans "/côté" ("8", "8/côté"). Pas les distances ni durées. */

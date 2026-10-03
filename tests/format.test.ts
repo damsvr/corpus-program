@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { classifyBloc, isInformationalBloc, isMobiliteBloc, parseRestSeconds } from "@/lib/format";
+import {
+  classifyBloc,
+  isInformationalBloc,
+  isMobiliteBloc,
+  isPerSide,
+  parseHoldSeconds,
+  parseNotation,
+  parseRestSeconds,
+} from "@/lib/format";
 
 describe("parseRestSeconds", () => {
   it("secondes (deux apostrophes)", () => {
@@ -70,5 +78,43 @@ describe("isMobiliteBloc / classifyBloc", () => {
   it("bloc de travail -> travail", () => {
     expect(classifyBloc("BLOC A — BACK SQUAT, MOUVEMENT PRINCIPAL", false)).toBe("travail");
     expect(classifyBloc("MONTÉE EN CHARGE", false)).toBe("travail");
+  });
+});
+
+describe("parseHoldSeconds", () => {
+  it("secondes et minutes", () => {
+    expect(parseHoldSeconds("30''")).toBe(30);
+    expect(parseHoldSeconds("20''/côté")).toBe(20);
+    expect(parseHoldSeconds("45 s")).toBe(45);
+    expect(parseHoldSeconds("2'")).toBe(120);
+    expect(parseHoldSeconds("3 min")).toBe(180);
+    expect(parseHoldSeconds("20-30''")).toBe(25);
+  });
+
+  it("jamais une distance ni des répétitions", () => {
+    for (const v of ["20m", "15 m/côté", "25 m — min paires (7 rounds)", "1000 m", "500m/round", "8m aller-retour", "10", "8/côté", "3 sets", "3-6-9-12 (paliers)", "AMRAP temps restant", ""]) {
+      expect(parseHoldSeconds(v)).toBeNull();
+    }
+    expect(parseHoldSeconds(null)).toBeNull();
+  });
+});
+
+describe("isPerSide", () => {
+  it("détecte /côté, /jambe, /bras", () => {
+    expect(isPerSide("30''/côté")).toBe(true);
+    expect(isPerSide("8/jambe")).toBe(true);
+    expect(isPerSide("20''")).toBe(false);
+    expect(isPerSide("")).toBe(false);
+  });
+});
+
+describe("parseNotation", () => {
+  it("N×M, bare number, N sets", () => {
+    expect(parseNotation("5×5")).toEqual({ sets: 5, reps: "5" });
+    expect(parseNotation("2×20''")).toEqual({ sets: 2, reps: "20''" });
+    expect(parseNotation("12")).toEqual({ sets: 1, reps: "12" });
+    expect(parseNotation("3 sets")).toEqual({ sets: 3, reps: "" });
+    expect(parseNotation("4 séries")).toEqual({ sets: 4, reps: "" });
+    expect(parseNotation(null)).toEqual({ sets: 1, reps: "" });
   });
 });
