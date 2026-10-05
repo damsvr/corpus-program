@@ -67,7 +67,7 @@ export default async function AujourdhuiPage() {
       <section className="rounded-3xl border border-line bg-gradient-to-b from-card2 to-card p-6">
         <div className="grad-accent h-[3px] w-12 rounded-full" />
         <p className="eyebrow mt-4 !text-brand">
-          Semaine {String(week.numero).padStart(2, "0")} · bloc {week.blocNumero} · S{week.semaineDansBloc}
+          Bloc {week.blocNumero} · Semaine {week.semaineDansBloc}
         </p>
         <h1 className="mt-1 text-4xl font-extrabold uppercase">Ta semaine</h1>
         <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.14em]">

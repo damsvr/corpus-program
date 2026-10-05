@@ -5,6 +5,7 @@ import { MODULES, filterModule, getActiveProgram, getWeek, programOwnerId } from
 import { BlocCard } from "@/components/bloc-card";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
+import { weekLabel } from "@/lib/week-label";
 
 const weekdayLabel = (key: string | null) => JOURS.find((j) => j.key === key)?.label ?? null;
 
@@ -63,7 +64,7 @@ export default async function ProgrammePage({
       <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
         {program.weeks.map((w) => (
           <Link key={w.id} href={`/programme?w=${w.numero}`} className={pill(w.numero === week.numero)}>
-            Week {String(w.numero).padStart(2, "0")}
+            {weekLabel(w)}
           </Link>
         ))}
       </div>

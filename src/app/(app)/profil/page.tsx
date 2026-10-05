@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { JOURS, PROFILE_KEYS, PROFILE_META } from "@/lib/profiles";
+import { getPublicationStatus } from "@/lib/program";
 import { SaveForm } from "@/components/save-form";
 import { TimeInput } from "@/components/time-input";
 import { logout, saveAthlete, savePrs, saveReminder, setProfile } from "./actions";
@@ -33,6 +34,7 @@ export default async function ProfilPage() {
     db.athleteProfile.findUnique({ where: { userId: user.id } }),
   ]);
   const prsRecord = (prs ?? {}) as Record<string, number | string | null | undefined>;
+  const publication = user.role === "COACH" ? await getPublicationStatus(user.id) : null;
 
   return (
     <div className="space-y-10">
@@ -184,6 +186,40 @@ export default async function ProfilPage() {
           </SaveForm>
         </div>
       </section>
+
+      {publication && (
+        <section className="space-y-4">
+          <p className="eyebrow">Publication aux athlètes</p>
+          <div className="rounded-3xl border border-line bg-card p-5">
+            <p className="text-sm text-muted">
+              Les athlètes voient automatiquement les semaines que tu importes, pour chaque profil.
+            </p>
+            <ul className="mt-3 divide-y divide-line/70">
+              {publication.profiles.map((p) => (
+                <li key={p.profile} className="flex items-center justify-between gap-3 py-3 text-sm">
+                  <span className="font-medium">{PROFILE_META[p.profile].label}</span>
+                  <span className="text-right text-xs text-muted">
+                    {p.weeks.length > 0 ? (
+                      <span className="text-brand">
+                        {p.weeks.length} semaine{p.weeks.length > 1 ? "s" : ""} ({p.weeks.join(", ")})
+                      </span>
+                    ) : (
+                      "rien de publié"
+                    )}
+                    {" · "}
+                    {p.athletes} athlète{p.athletes > 1 ? "s" : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {publication.coaches > 1 && (
+              <p className="mt-3 rounded-xl bg-accent/10 px-3 py-2 text-xs text-accent">
+                {publication.coaches} comptes ont le rôle coach : les athlètes suivent celui qui a publié le plus récemment.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-3">
         <p className="eyebrow">Compte</p>
