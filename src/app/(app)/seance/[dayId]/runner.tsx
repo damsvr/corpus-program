@@ -6,11 +6,11 @@ import { finishSession } from "../actions";
 import { classifyBloc, isPerSide, parseHoldSeconds, parseNotation, parseRestSeconds } from "@/lib/format";
 import { restGroups } from "@/lib/rest-plan";
 import { shortExerciceName } from "@/lib/share";
-import { formatClock, resolveBlocRounds } from "@/lib/wod-format";
+import { planBloc } from "@/lib/bloc-plan";
+import { formatClock } from "@/lib/wod-format";
+import { BlocRun } from "./bloc-run";
 import { WodClock } from "./wod-clock";
 import {
-  BlocIntervalClock,
-  HoldTimer,
   HoldTimerList,
   REST_GRACE_MS,
   RestTimer,
@@ -38,7 +38,7 @@ export type RunnerBloc = {
   exercices: RunnerExercice[];
 };
 
-type SetState = { kg: string; reps: string; done: boolean };
+export type SetState = { kg: string; reps: string; done: boolean };
 
 const num = (s: string): number | null => {
   const v = parseFloat(s.replace(",", "."));
@@ -110,18 +110,17 @@ export function SessionRunner({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
   // Échauffement / mobilité / WOD : pas de charge ni de validation de série ici
-  // (chronos dédiés) — seuls les blocs de travail alimentent ce state. Pour
-  // un bloc structuré en rounds ("4 rounds, Every 3:00", EMOM...), le nombre
-  // de séries vient du format_entete (partagé par tous les mouvements du
-  // bloc) plutôt que de la notation propre à chaque exercice.
+  // (chronos dédiés) — seuls les blocs de travail alimentent ce state. Un bloc
+  // en rounds ou en « N séries de » partage son nombre de séries entre tous
+  // ses mouvements ; sinon chaque exercice a les siennes (notation « N×M »).
   const [state, setState] = useState<Record<string, SetState[]>>(() =>
     Object.fromEntries(
       blocs
         .filter((b) => classifyBloc(b.nom, b.isWod) === "travail")
         .flatMap((b) => {
-          const { totalRounds } = resolveBlocRounds(b.formatEntete);
+          const plan = planBloc(b.formatEntete, b.exercices);
           return b.exercices.map((e) => {
-            const rounds = totalRounds > 0 ? totalRounds : e.sets;
+            const rounds = plan.kind === "sequence" ? e.sets : plan.total;
             return [
               e.id,
               Array.from({ length: rounds }, () => ({ kg: "", reps: e.defaultReps ? String(e.defaultReps) : "", done: false })),
@@ -131,10 +130,8 @@ export function SessionRunner({
     ),
   );
 
-  // Repos en cours : clé = id du bloc (bloc en rounds) ou du premier exercice du groupe.
+  // Repos en cours des blocs « séquence » : clé = id du premier exercice du groupe.
   const [rests, setRests] = useState<Record<string, Rest | undefined>>({});
-  // Départ du chrono « Every X:XX » d'un bloc en rounds, par id de bloc.
-  const [blocStarts, setBlocStarts] = useState<Record<string, number | undefined>>({});
   const [wodScores, setWodScores] = useState<Record<string, string | null>>({});
 
   useWakeLock();
@@ -166,6 +163,15 @@ export function SessionRunner({
   const update = (id: string, i: number, patch: Partial<SetState>) =>
     setState((s) => ({ ...s, [id]: s[id].map((x, j) => (j === i ? { ...x, ...patch } : x)) }));
 
+  const markDone = (ids: string[], from: number, to: number, done: boolean) =>
+    setState((s) => {
+      const next = { ...s };
+      for (const id of ids) {
+        if (next[id]) next[id] = next[id].map((x, j) => (j >= from && j < to ? { ...x, done } : x));
+      }
+      return next;
+    });
+
   const dropRest = (key: string) =>
     setRests((r) => {
       const { [key]: _drop, ...next } = r;
@@ -178,16 +184,15 @@ export function SessionRunner({
       .filter(Boolean)
       .join(" ");
 
-  // Valide / dévalide une série. Le repos s'enclenche automatiquement quand le
-  // DERNIER mouvement de la série (round, ou groupe en superset) est validé.
+  // Valide / dévalide une série d'un bloc « séquence ». Le repos s'enclenche
+  // automatiquement quand le DERNIER mouvement du groupe (superset) est validé.
   const toggleSet = (blocIndex: number, b: RunnerBloc, ex: RunnerExercice, i: number) => {
     const wasDone = state[ex.id][i].done;
     update(ex.id, i, { done: !wasDone });
 
-    const { totalRounds, restSeconds: intervalSeconds } = resolveBlocRounds(b.formatEntete);
     const groups = restGroups(b.exercices);
     const group = groups.find((g) => g.some((e) => e.id === ex.id)) ?? [ex];
-    const restKey = totalRounds > 0 ? b.id : group[0].id;
+    const restKey = group[0].id;
 
     if (wasDone) {
       setRests((r) => {
@@ -195,24 +200,6 @@ export function SessionRunner({
         const { [restKey]: _drop, ...next } = r;
         return next;
       });
-      return;
-    }
-
-    const nowMs = Date.now();
-
-    if (totalRounds > 0) {
-      if (ex.id !== b.exercices[b.exercices.length - 1].id || !intervalSeconds || i >= totalRounds - 1) return;
-      const blocStart = blocStarts[b.id];
-      const endsAt = blocStart ? Math.max(nowMs, blocStart + (i + 1) * intervalSeconds * 1000) : nowMs + intervalSeconds * 1000;
-      setRests((r) => ({
-        ...r,
-        [restKey]: {
-          endsAt,
-          setIndex: i,
-          title: `Repos · série ${i + 1} / ${totalRounds}`,
-          next: `Prochaine : série ${i + 2} / ${totalRounds} · ${b.exercices.map((e) => shortExerciceName(e.nom)).join(" + ")}`,
-        },
-      }));
       return;
     }
 
@@ -230,7 +217,7 @@ export function SessionRunner({
     setRests((r) => ({
       ...r,
       [restKey]: {
-        endsAt: nowMs + seconds * 1000,
+        endsAt: Date.now() + seconds * 1000,
         setIndex: i,
         title: groupSets > 1 ? `Repos · série ${i + 1} / ${groupSets}` : "Repos",
         next,
@@ -340,32 +327,19 @@ export function SessionRunner({
 
             {kind === "travail" &&
               (() => {
-                const { totalRounds, restSeconds } = resolveBlocRounds(b.formatEntete);
+                const plan = planBloc(b.formatEntete, b.exercices);
+                if (plan.kind !== "sequence") {
+                  return <BlocRun bloc={b} plan={plan} now={now} state={state} update={update} markDone={markDone} />;
+                }
                 const groups = restGroups(b.exercices);
                 return (
                   <div className="mt-4 space-y-5">
-                    {totalRounds > 0 && restSeconds && (
-                      <>
-                        <p className="eyebrow !text-accent">{totalRounds} séries</p>
-                        <BlocIntervalClock
-                          startedAt={blocStarts[b.id]}
-                          now={now}
-                          roundSeconds={restSeconds}
-                          totalRounds={totalRounds}
-                          onStart={() => setBlocStarts((s) => ({ ...s, [b.id]: Date.now() }))}
-                          onReset={() => {
-                            setBlocStarts((s) => ({ ...s, [b.id]: undefined }));
-                            dropRest(b.id);
-                          }}
-                        />
-                      </>
-                    )}
                     {b.exercices.map((e) => {
                       const n = parseNotation(e.notation);
-                      const holdSeconds = parseHoldSeconds(n.reps);
+                      const timed = parseHoldSeconds(n.reps) !== null;
                       const hasWeight = !!e.charge?.trim();
                       const group = groups.find((g) => g.some((x) => x.id === e.id)) ?? [e];
-                      const showGroupRest = totalRounds === 0 && group[group.length - 1].id === e.id;
+                      const showGroupRest = group[group.length - 1].id === e.id;
                       return (
                         <div key={e.id}>
                           <div className="flex items-baseline justify-between gap-3">
@@ -374,7 +348,7 @@ export function SessionRunner({
                               {[n.reps, e.charge, e.repos].filter(Boolean).join(" · ")}
                             </span>
                           </div>
-                          {totalRounds === 0 && e.sets > 1 && (
+                          {e.sets > 1 && (
                             <p className="mt-0.5 text-[0.68rem] uppercase tracking-[0.1em] text-muted">{e.sets} séries</p>
                           )}
                           {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
@@ -391,9 +365,7 @@ export function SessionRunner({
                                     className={input}
                                   />
                                 )}
-                                {holdSeconds ? (
-                                  <HoldTimer seconds={holdSeconds} steps={isPerSide(n.reps) ? 2 : 1} className="" />
-                                ) : (
+                                {!timed && (
                                   <input
                                     aria-label={`Répétitions série ${i + 1}`}
                                     inputMode="numeric"
@@ -422,9 +394,6 @@ export function SessionRunner({
                         </div>
                       );
                     })}
-                    {totalRounds > 0 && rests[b.id] && (
-                      <RestTimer rest={rests[b.id]!} now={now} onSkip={() => dropRest(b.id)} />
-                    )}
                   </div>
                 );
               })()}
