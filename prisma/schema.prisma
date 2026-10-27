@@ -210,3 +210,13 @@ model ExerciceLog {
 
   @@unique([sessionId, exerciceId])
 }
+
+// Bibliothèque de vidéos YouTube par mouvement, gérée par le coach et
+// appliquée à toutes les semaines importées (clé = movementKey du nom).
+model MovementVideo {
+  key       String   @id
+  nom       String
+  youtubeId String
+  startSec  Int?
+  updatedAt DateTime @updatedAt
+}

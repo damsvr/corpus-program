@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { VideoButton } from "@/components/video-button";
 import { parseNotation } from "@/lib/format";
 import type { BlocPlan } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
@@ -216,7 +217,10 @@ function Movement({
         {reps || "·"}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-[0.95rem] font-medium leading-snug">{e.nom}</p>
+        <p className="text-[0.95rem] font-medium leading-snug">
+          {e.nom}
+          <VideoButton nom={e.nom} />
+        </p>
         {e.charge && <p className="mt-0.5 text-[0.72rem] uppercase tracking-[0.08em] text-muted">{e.charge}</p>}
         {e.note && <p className="mt-0.5 text-[0.78rem] text-muted">{e.note}</p>}
         {slot && (hasWeight || hasReps) && (

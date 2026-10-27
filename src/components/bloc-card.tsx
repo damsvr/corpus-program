@@ -1,4 +1,5 @@
 import type { BlocFull } from "@/lib/program";
+import { VideoButton } from "@/components/video-button";
 
 function Note({ text }: { text: string }) {
   const isGate = /^\s*GATE\s*:/i.test(text);
@@ -36,7 +37,10 @@ export function BlocCard({ bloc }: { bloc: BlocFull }) {
         {bloc.exercices.map((e) => (
           <li key={e.id} className="py-3">
             <div className="flex items-baseline justify-between gap-4">
-              <span className="text-[0.95rem]">{e.nom}</span>
+              <span className="text-[0.95rem]">
+                {e.nom}
+                <VideoButton nom={e.nom} />
+              </span>
               <span className="shrink-0 text-right text-[0.72rem] font-medium uppercase tracking-[0.1em] text-muted">
                 {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
               </span>

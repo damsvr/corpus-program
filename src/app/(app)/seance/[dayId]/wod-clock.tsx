@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { VideoButton } from "@/components/video-button";
 import { extractScoreHint, formatClock, parseWodFormat, type WodProgram } from "@/lib/wod-format";
 import type { RunnerExercice } from "./runner";
 import { usePressGuard } from "./timers";
@@ -8,7 +9,10 @@ import { usePressGuard } from "./timers";
 function ExerciceRef({ e }: { e: RunnerExercice }) {
   return (
     <div className="flex items-baseline justify-between gap-3 py-1.5">
-      <span className="text-[0.9rem]">{e.nom}</span>
+      <span className="text-[0.9rem]">
+        {e.nom}
+        <VideoButton nom={e.nom} />
+      </span>
       <span className="shrink-0 text-right text-[0.68rem] uppercase tracking-[0.1em] text-muted">
         {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
       </span>
@@ -244,7 +248,8 @@ function IntervalRunning({
         <p className="text-[0.68rem] uppercase tracking-[0.12em] text-muted">Mouvements de ce round</p>
         {exercices.map((e) => (
           <p key={e.id} className="text-sm">
-            {e.nom} <span className="text-muted">— {[e.notation, e.charge].filter(Boolean).join(" · ")}</span>
+            {e.nom}
+            <VideoButton nom={e.nom} /> <span className="text-muted">— {[e.notation, e.charge].filter(Boolean).join(" · ")}</span>
           </p>
         ))}
       </div>

@@ -228,6 +228,11 @@ export default async function ProfilPage() {
             Importer une semaine →
           </Link>
         )}
+        {user.role === "COACH" && (
+          <Link href="/videos" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
+            Vidéos des mouvements →
+          </Link>
+        )}
         <form action={logout}>
           <button type="submit" className="w-full rounded-full border border-line px-6 py-4 text-sm font-bold uppercase tracking-[0.14em] text-muted">
             Déconnexion

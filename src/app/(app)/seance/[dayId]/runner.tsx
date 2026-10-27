@@ -9,6 +9,7 @@ import { shortExerciceName } from "@/lib/share";
 import { planBloc } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
 import { BlocRun } from "./bloc-run";
+import { VideoButton } from "@/components/video-button";
 import { WodClock } from "./wod-clock";
 import {
   HoldTimerList,
@@ -292,7 +293,10 @@ export function SessionRunner({
                   {b.exercices.map((e) => (
                     <li key={e.id} className="py-3">
                       <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[0.95rem]">{e.nom}</span>
+                        <span className="text-[0.95rem]">
+                          {e.nom}
+                          <VideoButton nom={e.nom} />
+                        </span>
                         <span className="shrink-0 text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
                           {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
                         </span>
@@ -312,7 +316,10 @@ export function SessionRunner({
                   return (
                     <li key={e.id} className="py-3">
                       <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[0.95rem]">{e.nom}</span>
+                        <span className="text-[0.95rem]">
+                          {e.nom}
+                          <VideoButton nom={e.nom} />
+                        </span>
                         <span className="shrink-0 text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
                           {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
                         </span>
@@ -343,7 +350,10 @@ export function SessionRunner({
                       return (
                         <div key={e.id}>
                           <div className="flex items-baseline justify-between gap-3">
-                            <span className="text-[0.95rem] font-medium">{e.nom}</span>
+                            <span className="text-[0.95rem] font-medium">
+                              {e.nom}
+                              <VideoButton nom={e.nom} />
+                            </span>
                             <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
                               {[n.reps, e.charge, e.repos].filter(Boolean).join(" · ")}
                             </span>
