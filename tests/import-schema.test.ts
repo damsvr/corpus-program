@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateImport, parseDuree, normalizeWeekday } from "@/lib/import-schema";
+import { validateImport, parseDuree, normalizeWeekday, explainJsonError } from "@/lib/import-schema";
 
 const ex = (nom: string, extra = {}) => ({ nom, notation: "3×8", ...extra });
 
@@ -269,5 +269,32 @@ describe("régression — import Functional avec jours libres (bug rapporté)", 
     const blocs = w.seances[0].blocs as unknown as { nom: string; module?: string; exercices: unknown[] }[];
     blocs.unshift({ nom: "BLOC SUPPLÉMENTAIRE", exercices: [ex("Row")] });
     expect(validateImport(w).ok).toBe(false);
+  });
+});
+
+describe("explainJsonError", () => {
+  const explain = (text: string) => {
+    try {
+      JSON.parse(text);
+      return "";
+    } catch (e) {
+      return explainJsonError(text, (e as Error).message);
+    }
+  };
+
+  it("signale un JSON coupé et les fermetures manquantes", () => {
+    const msg = explain('{"seances":[{"titre":"A"}],"notes_coach":{"texte":"Aucune question ouverte."\n');
+    expect(msg).toMatch(/il manque la fin/);
+    expect(msg).toMatch(/ajouter à la toute fin : }}$/);
+  });
+
+  it("signale un texte coupé au milieu d'une chaîne", () => {
+    expect(explain('{"notes":"Aucune quest')).toMatch(/au milieu d'une phrase/);
+  });
+
+  it("montre ligne, colonne et extrait pour une erreur au milieu", () => {
+    const msg = explain('{\n"a": "box 20" jump",\n"b": 1\n}');
+    expect(msg).toMatch(/ligne 2, colonne 15/);
+    expect(msg).toContain('"box 20" ▶ jump"');
   });
 });

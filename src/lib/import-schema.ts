@@ -260,3 +260,48 @@ export function totalWeekMinutes(w: ImportedWeek): number | null {
   }
   return null;
 }
+
+/** Fermetures manquantes en fin de texte (« }]} »…), ou "string" si le texte s'arrête au milieu d'une chaîne. */
+function missingClosers(text: string): string | "string" {
+  const stack: string[] = [];
+  let inString = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "{") stack.push("}");
+    else if (c === "[") stack.push("]");
+    else if (c === "}" || c === "]") stack.pop();
+  }
+  return inString ? "string" : stack.reverse().join("");
+}
+
+/**
+ * Traduit une erreur de JSON.parse en message utile au coach : JSON coupé
+ * (copie incomplète ou réponse d'agent tronquée) → « il manque la fin » et
+ * les fermetures à ajouter ; sinon ligne, colonne et extrait autour de l'erreur.
+ */
+export function explainJsonError(text: string, message: string): string {
+  const pos = Number(/position (\d+)/.exec(message)?.[1] ?? NaN);
+  const end = text.trimEnd().length;
+  const truncated = /end of (JSON|data)|unterminated string/i.test(message) || (Number.isFinite(pos) && pos >= end);
+  if (truncated) {
+    const closers = missingClosers(text.trimEnd());
+    const fix =
+      closers === "string"
+        ? "le texte s'arrête au milieu d'une phrase."
+        : closers
+          ? `il faudrait ajouter à la toute fin : ${closers}`
+          : "";
+    return `JSON coupé : il manque la fin. Recopie la réponse complète de l'agent, jusqu'à la dernière accolade (ou demande-lui de terminer le JSON)${fix ? ` — ${fix}` : "."}`;
+  }
+  if (!Number.isFinite(pos)) return `JSON illisible : ${message}`;
+  const before = text.slice(0, pos);
+  const line = before.split("\n").length;
+  const col = pos - before.lastIndexOf("\n");
+  const flat = (s: string) => s.replace(/\s+/g, " ");
+  const excerpt = `${pos > 40 ? "…" : ""}${flat(text.slice(Math.max(0, pos - 40), pos)).trimEnd()} ▶ ${flat(text.slice(pos, pos + 30)).trimStart()}${pos + 30 < text.length ? "…" : ""}`;
+  return `JSON illisible ligne ${line}, colonne ${col}, à l'endroit marqué ▶ : « ${excerpt} ». Cause fréquente : un guillemet " non échappé dans un texte (écris 20'' et non 20") ou une virgule manquante.`;
+}

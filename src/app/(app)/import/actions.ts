@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { validateImport } from "@/lib/import-schema";
+import { explainJsonError, validateImport } from "@/lib/import-schema";
 import { ImportConflictError, importWeek } from "@/lib/import-week";
 import { requireCoach, requireUser } from "@/lib/session";
 
@@ -17,7 +17,7 @@ function parse(text: string): { ok: true; value: unknown } | { ok: false; error:
   try {
     return { ok: true, value: JSON.parse(text) };
   } catch (e) {
-    return { ok: false, error: `JSON illisible : ${(e as Error).message}` };
+    return { ok: false, error: explainJsonError(text, (e as Error).message) };
   }
 }
 
