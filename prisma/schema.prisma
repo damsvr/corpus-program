@@ -63,10 +63,30 @@ model User {
   // Profil d'entraînement actif : pilote la teinte d'accent de l'app.
   activeProfile      ProfileType        @default(CROSSFIT)
   reminderTime       String?            @default("07:00")
+  // Inscrit via un lien d'accès gratuit : verrouillé sur le profil du lien et
+  // limité aux semaines du cycle couvert (cf. src/lib/access.ts).
+  accessLinkId       String?
+  accessLink         AccessLink?        @relation(fields: [accessLinkId], references: [id], onDelete: Restrict)
   prs                Prs?
   athlete            AthleteProfile?
   programs           Program[]
   sessions           SessionLog[]
+}
+
+// Lien d'inscription gratuit partagé par le coach (ex. préparation TyRun en
+// Hybrid) : donne accès aux seules semaines des blocs [blocDebut, blocFin] du
+// profil, jusqu'à endsAt — inscriptions comprises.
+model AccessLink {
+  id        String      @id @default(cuid())
+  code      String      @unique
+  profile   ProfileType
+  label     String
+  blocDebut Int
+  blocFin   Int
+  endsAt    DateTime
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  users     User[]
 }
 
 // PR personnels : base du calcul des charges (%TM, %PDC) et des allures.

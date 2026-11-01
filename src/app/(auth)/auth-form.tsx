@@ -8,16 +8,19 @@ import type { FormState } from "./actions";
 type Props = {
   mode: "login" | "signup";
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
+  /** Code d'un lien d'accès gratuit, transmis à l'inscription. */
+  code?: string;
 };
 
 const input =
   "w-full rounded-2xl border border-line bg-bg/70 px-5 py-4 text-base text-white placeholder:text-muted/60 outline-none focus:border-brand";
 
-export function AuthForm({ mode, action }: Props) {
+export function AuthForm({ mode, action, code }: Props) {
   const [state, formAction] = useActionState(action, undefined);
   const isSignup = mode === "signup";
   return (
     <form action={formAction} className="rounded-3xl border border-line bg-card p-6 space-y-5">
+      {code && <input type="hidden" name="code" value={code} />}
       {isSignup && (
         <label className="block">
           <span className="eyebrow">Prénom</span>

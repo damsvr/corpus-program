@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META } from "@/lib/profiles";
 import { programOwnerId } from "@/lib/program";
+import { getAccess } from "@/lib/access";
 import { parseNotation, repsAsNumber } from "@/lib/format";
 import { SessionRunner, type RunnerBloc } from "./runner";
 
@@ -22,10 +23,10 @@ export default async function SeancePage({
   const { dayId } = await params;
   const sp = await searchParams;
   const user = await requireUser();
-  const ownerId = await programOwnerId(user);
+  const [ownerId, access] = await Promise.all([programOwnerId(user), getAccess(user)]);
 
   const day = await db.day.findFirst({
-    where: { id: dayId, week: { program: { userId: ownerId } } },
+    where: { id: dayId, week: { AND: [access.weekWhere, { program: { userId: ownerId } }] } },
     include: { blocs: { orderBy: { ordre: "asc" }, include: { exercices: { orderBy: { ordre: "asc" } } } } },
   });
   if (!day) notFound();

@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { JOURS, MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, filterModule, getActiveProgram, getWeek, programOwnerId } from "@/lib/program";
+import { getAccess } from "@/lib/access";
+import { AccessEnded } from "@/components/access-ended";
 import { BlocCard } from "@/components/bloc-card";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
@@ -25,8 +27,10 @@ export default async function ProgrammePage({
   const user = await requireUser();
   const meta = PROFILE_META[user.activeProfile];
   const isCoach = user.role === "COACH";
+  const access = await getAccess(user);
+  if (access.ended) return <AccessEnded link={access.link} />;
   const ownerId = await programOwnerId(user);
-  const program = await getActiveProgram(ownerId, user.activeProfile);
+  const program = await getActiveProgram(ownerId, user.activeProfile, access.weekWhere);
 
   if (!program || program.weeks.length === 0) {
     return (
@@ -48,7 +52,7 @@ export default async function ProgrammePage({
   }
 
   const requested = sp.w ? parseInt(sp.w, 10) : undefined;
-  const week = await getWeek(program.id, Number.isFinite(requested) ? requested : undefined);
+  const week = await getWeek(program.id, Number.isFinite(requested) ? requested : undefined, access.weekWhere);
   if (!week) return <p className="text-muted">Semaine introuvable.</p>;
 
   const requestedDay = sp.j ? parseInt(sp.j, 10) : undefined;

@@ -1,10 +1,13 @@
+import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { Quiz } from "./quiz";
 
 export const metadata = { title: "Choisir mon profil — Corpus Program" };
 
 export default async function OnboardingPage() {
-  await requireUser();
+  const user = await requireUser();
+  // Profil verrouillé par un lien d'accès gratuit : rien à choisir.
+  if (user.accessLinkId) redirect("/aujourdhui");
   return (
     <div className="space-y-6">
       <div>

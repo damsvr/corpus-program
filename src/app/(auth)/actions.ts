@@ -6,6 +6,7 @@ import { z } from "zod";
 import { signIn } from "@/auth";
 import { db } from "@/lib/db";
 import { isCoachEmail } from "@/lib/roles";
+import { isLinkOpen } from "@/lib/access";
 
 export type FormState = { error?: string } | undefined;
 
@@ -46,6 +47,11 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
 
+  // Inscription via un lien d'accès gratuit : profil verrouillé, pas de quiz.
+  const code = String(formData.get("code") ?? "");
+  const link = code ? await db.accessLink.findUnique({ where: { code } }) : null;
+  if (code && (!link || !isLinkOpen(link))) return { error: "Ce lien d'accès n'est plus valable." };
+
   const email = parsed.data.email.toLowerCase().trim();
   const exists = await db.user.findUnique({ where: { email } });
   if (exists) return { error: "Un compte existe déjà avec cet e-mail" };
@@ -57,13 +63,14 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
       passwordHash,
       name: parsed.data.name,
       role: isCoachEmail(email) ? "COACH" : "ATHLETE",
+      ...(link && { accessLinkId: link.id, activeProfile: link.profile }),
       prs: { create: {} },
       athlete: { create: {} },
     },
   });
 
   try {
-    await signIn("credentials", { email, password: parsed.data.password, redirectTo: "/onboarding" });
+    await signIn("credentials", { email, password: parsed.data.password, redirectTo: link ? "/aujourdhui" : "/onboarding" });
   } catch (e) {
     if (e instanceof AuthError) return { error: "Compte créé, mais la connexion a échoué. Connecte-toi." };
     throw e;

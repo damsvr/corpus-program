@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, countSets, filterModule, getActiveProgram, getWeek, programOwnerId, type DayFull } from "@/lib/program";
+import { getAccess } from "@/lib/access";
+import { AccessEnded } from "@/components/access-ended";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 
@@ -15,9 +17,11 @@ const startBtn =
 export default async function AujourdhuiPage() {
   const user = await requireUser();
   const meta = PROFILE_META[user.activeProfile];
+  const access = await getAccess(user);
+  if (access.ended) return <AccessEnded link={access.link} />;
   const ownerId = await programOwnerId(user);
-  const program = await getActiveProgram(ownerId, user.activeProfile);
-  const week = program ? await getWeek(program.id) : null;
+  const program = await getActiveProgram(ownerId, user.activeProfile, access.weekWhere);
+  const week = program ? await getWeek(program.id, undefined, access.weekWhere) : null;
 
   if (!week) {
     return (

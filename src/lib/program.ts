@@ -66,22 +66,27 @@ export async function getPublicationStatus(coachId: string): Promise<Publication
   };
 }
 
-export async function getActiveProgram(userId: string, profile: ProfileType) {
+/** `weekWhere` (cf. access.ts) restreint les semaines visibles, ex. au cycle d'un lien d'accès gratuit. */
+export async function getActiveProgram(userId: string, profile: ProfileType, weekWhere: Prisma.WeekWhereInput = {}) {
   const program = await db.program.findFirst({
     where: { userId, profile, active: true },
-    include: { weeks: { select: { id: true, numero: true, blocNumero: true, semaineDansBloc: true } } },
+    include: { weeks: { where: weekWhere, select: { id: true, numero: true, blocNumero: true, semaineDansBloc: true } } },
   });
   if (program) program.weeks.sort(compareWeeks);
   return program;
 }
 
 /** Semaine demandée (par numéro), sinon la plus avancée du programme (bloc puis semaine, quel que soit l'ordre d'import). */
-export async function getWeek(programId: string, numero?: number): Promise<WeekFull | null> {
+export async function getWeek(
+  programId: string,
+  numero?: number,
+  weekWhere: Prisma.WeekWhereInput = {},
+): Promise<WeekFull | null> {
   if (numero !== undefined) {
-    return db.week.findUnique({ where: { programId_numero: { programId, numero } }, include: weekInclude });
+    return db.week.findFirst({ where: { ...weekWhere, programId, numero }, include: weekInclude });
   }
   return db.week.findFirst({
-    where: { programId },
+    where: { ...weekWhere, programId },
     orderBy: [{ blocNumero: "desc" }, { semaineDansBloc: "desc" }],
     include: weekInclude,
   });

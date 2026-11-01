@@ -5,7 +5,8 @@ import { z } from "zod";
 import { signOut } from "@/auth";
 import { db } from "@/lib/db";
 import { PROFILE_KEYS } from "@/lib/profiles";
-import { requireUser } from "@/lib/session";
+import { requireCoach, requireUser } from "@/lib/session";
+import { endOfDay, newAccessCode } from "@/lib/access";
 import type { SaveState } from "@/components/save-form";
 
 const kg = z
@@ -78,8 +79,44 @@ export async function setProfile(fd: FormData) {
   const user = await requireUser();
   const p = String(fd.get("profile"));
   if (!(PROFILE_KEYS as readonly string[]).includes(p)) return;
+  // Inscrit via un lien d'accès gratuit : profil verrouillé sur celui du lien.
+  if (user.accessLinkId) return;
   await db.user.update({ where: { id: user.id }, data: { activeProfile: p as (typeof PROFILE_KEYS)[number] } });
   revalidatePath("/", "layout");
+}
+
+const accessLinkSchema = z
+  .object({
+    label: z.string().trim().min(1, "Nom du cycle requis").max(60),
+    blocDebut: z.coerce.number().int().min(1, "Bloc de début invalide"),
+    blocFin: z.coerce.number().int().min(1, "Bloc de fin invalide"),
+    endsAt: z.string().transform((s, ctx) => endOfDay(s) ?? (ctx.addIssue({ code: "custom", message: "Date de fin invalide" }), z.NEVER)),
+    active: z.boolean(),
+  })
+  .refine((v) => v.blocFin >= v.blocDebut, "Le bloc de fin doit suivre le bloc de début");
+
+/** Lien d'accès gratuit Hybrid (un seul, pour le cycle en cours) — créé au premier enregistrement. */
+export async function saveAccessLink(_p: SaveState, fd: FormData): Promise<SaveState> {
+  await requireCoach();
+  const parsed = accessLinkSchema.safeParse({
+    label: String(fd.get("label") ?? ""),
+    blocDebut: fd.get("blocDebut"),
+    blocFin: fd.get("blocFin"),
+    endsAt: String(fd.get("endsAt") ?? ""),
+    active: fd.get("active") === "on",
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  const existing = await db.accessLink.findFirst({ where: { profile: "HYBRID" }, orderBy: { createdAt: "desc" } });
+  if (existing) {
+    await db.accessLink.update({ where: { id: existing.id }, data: parsed.data });
+  } else {
+    // Préfixe lisible = dernier mot du nom (« Préparation TyRun » → tyrun-3f9a1c2e).
+    const words = parsed.data.label.normalize("NFD").replace(/[^a-zA-Z0-9 ]+/g, "").toLowerCase().split(/\s+/);
+    const slug = words.filter(Boolean).pop()?.slice(0, 20) || "acces";
+    await db.accessLink.create({ data: { ...parsed.data, profile: "HYBRID", code: newAccessCode(slug) } });
+  }
+  revalidatePath("/profil");
+  return { ok: true };
 }
 
 export async function saveReminder(_p: SaveState, fd: FormData): Promise<SaveState> {
