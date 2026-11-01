@@ -67,6 +67,10 @@ model User {
   // limité aux semaines du cycle couvert (cf. src/lib/access.ts).
   accessLinkId       String?
   accessLink         AccessLink?        @relation(fields: [accessLinkId], references: [id], onDelete: Restrict)
+  // Accord (opt-in, décoché par défaut) pour être recontacté par e-mail :
+  // prochaines sessions gratuites, abonnement. Révocable dans /profil.
+  marketingOptIn     Boolean            @default(false)
+  marketingOptInAt   DateTime?
   prs                Prs?
   athlete            AthleteProfile?
   programs           Program[]

@@ -23,8 +23,8 @@ export function AuthForm({ mode, action, code }: Props) {
       {code && <input type="hidden" name="code" value={code} />}
       {isSignup && (
         <label className="block">
-          <span className="eyebrow">Prénom</span>
-          <input name="name" autoComplete="given-name" placeholder="Damien" className={`${input} mt-2`} />
+          <span className="eyebrow">{code ? "Prénom et nom" : "Prénom"}</span>
+          <input name="name" required={Boolean(code)} autoComplete="given-name" placeholder="Damien" className={`${input} mt-2`} />
         </label>
       )}
       <label className="block">
@@ -50,6 +50,15 @@ export function AuthForm({ mode, action, code }: Props) {
           className={`${input} mt-2`}
         />
       </label>
+      {code && (
+        <label className="flex items-start gap-3 text-sm text-muted">
+          <input type="checkbox" name="marketingOptIn" className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]" />
+          <span>
+            J&apos;accepte d&apos;être recontacté par e-mail pour les prochaines sessions gratuites et les offres
+            d&apos;abonnement. Désactivable à tout moment dans mon profil.
+          </span>
+        </label>
+      )}
       {state?.error && (
         <p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">
           {state.error}

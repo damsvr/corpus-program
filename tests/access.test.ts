@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { endOfDay, isCycleOver, isLinkOpen, newAccessCode } from "@/lib/access";
+import { csvRow } from "@/lib/contact";
 
 describe("lien d'accès gratuit", () => {
   const endsAt = endOfDay("2026-12-13")!;
@@ -26,5 +27,11 @@ describe("lien d'accès gratuit", () => {
     const a = newAccessCode("tyrun");
     expect(a).toMatch(/^tyrun-[0-9a-f]{8}$/);
     expect(newAccessCode("tyrun")).not.toBe(a);
+  });
+});
+
+describe("export des contacts", () => {
+  it("échappe les guillemets et sépare par « ; »", () => {
+    expect(csvRow(['Léa "La Fusée"', "lea@x.fr", null])).toBe('"Léa ""La Fusée""";"lea@x.fr";""');
   });
 });

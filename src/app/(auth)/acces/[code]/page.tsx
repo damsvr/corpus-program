@@ -5,6 +5,7 @@ import { Brand } from "@/components/brand";
 import { db } from "@/lib/db";
 import { isLinkOpen } from "@/lib/access";
 import { PROFILE_META } from "@/lib/profiles";
+import { COACH_INSTAGRAM_HANDLE, COACH_INSTAGRAM_URL } from "@/lib/contact";
 import { AuthForm } from "../../auth-form";
 import { signup } from "../../actions";
 
@@ -34,6 +35,12 @@ export default async function AccessPage({ params }: { params: Promise<{ code: s
             </p>
           </div>
           <AuthForm mode="signup" action={signup} code={link.code} />
+          <p className="text-center text-sm text-muted">
+            Une question ?{" "}
+            <a href={COACH_INSTAGRAM_URL} target="_blank" rel="noopener noreferrer" className="text-brand">
+              Écris-moi sur Instagram {COACH_INSTAGRAM_HANDLE}
+            </a>
+          </p>
         </div>
       ) : (
         <div className="space-y-4 rounded-3xl border border-line bg-card p-6">

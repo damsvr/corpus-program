@@ -6,6 +6,7 @@ import { MODULE_META, PROFILE_META } from "@/lib/profiles";
 import { MODULES, countSets, filterModule, getActiveProgram, getWeek, programOwnerId, type DayFull } from "@/lib/program";
 import { getAccess } from "@/lib/access";
 import { AccessEnded } from "@/components/access-ended";
+import { InstagramContact } from "@/components/instagram-contact";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 
@@ -127,6 +128,8 @@ export default async function AujourdhuiPage() {
           </div>
         </section>
       )}
+
+      {access.link && <InstagramContact />}
     </div>
   );
 }

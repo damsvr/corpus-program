@@ -119,6 +119,18 @@ export async function saveAccessLink(_p: SaveState, fd: FormData): Promise<SaveS
   return { ok: true };
 }
 
+/** Accord pour être recontacté par e-mail (inscrits d'un lien d'accès gratuit), révocable. */
+export async function saveMarketing(_p: SaveState, fd: FormData): Promise<SaveState> {
+  const user = await requireUser();
+  const optIn = fd.get("marketingOptIn") === "on";
+  await db.user.update({
+    where: { id: user.id },
+    data: { marketingOptIn: optIn, marketingOptInAt: optIn ? (user.marketingOptInAt ?? new Date()) : null },
+  });
+  revalidatePath("/profil");
+  return { ok: true };
+}
+
 export async function saveReminder(_p: SaveState, fd: FormData): Promise<SaveState> {
   const user = await requireUser();
   const t = String(fd.get("reminderTime") ?? "");

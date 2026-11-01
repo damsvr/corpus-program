@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { AccessLink } from "@prisma/client";
+import { InstagramContact } from "@/components/instagram-contact";
 
 /** Fin du cycle couvert par un lien d'accès gratuit : la programmation n'est plus servie, le suivi reste. */
 export function AccessEnded({ link }: { link: AccessLink | null }) {
@@ -14,6 +15,7 @@ export function AccessEnded({ link }: { link: AccessLink | null }) {
       <Link href="/historique" className="grad-accent inline-flex rounded-full px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-black">
         Voir mon historique
       </Link>
+      <InstagramContact title="Envie de continuer ?" />
     </div>
   );
 }

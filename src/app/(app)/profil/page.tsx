@@ -7,8 +7,9 @@ import { getPublicationStatus } from "@/lib/program";
 import { SaveForm } from "@/components/save-form";
 import { TimeInput } from "@/components/time-input";
 import { CopyLink } from "@/components/copy-link";
+import { InstagramContact } from "@/components/instagram-contact";
 import { getAccess, isCycleOver, isLinkOpen } from "@/lib/access";
-import { logout, saveAccessLink, saveAthlete, savePrs, saveReminder, setProfile } from "./actions";
+import { logout, saveAccessLink, saveAthlete, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
 
 export const metadata = { title: "Profil — Corpus Program" };
 
@@ -47,13 +48,16 @@ export default async function ProfilPage() {
       ? db.accessLink.findFirst({
           where: { profile: "HYBRID" },
           orderBy: { createdAt: "desc" },
-          include: { _count: { select: { users: true } } },
+          include: {
+            users: { orderBy: { createdAt: "desc" }, select: { id: true, name: true, email: true, marketingOptIn: true } },
+          },
         })
       : null,
   ]);
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const shownProfiles = access.link ? [access.link.profile] : PROFILE_KEYS;
+  const optIns = freeLink?.users.filter((u) => u.marketingOptIn).length ?? 0;
 
   return (
     <div className="space-y-10">
@@ -104,6 +108,26 @@ export default async function ProfilPage() {
             );
           })}
         </div>
+        {access.link && (
+          <>
+            <InstagramContact />
+            <div className="rounded-3xl border border-line bg-card p-5">
+              <SaveForm action={saveMarketing}>
+                <label className="flex items-start gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    name="marketingOptIn"
+                    defaultChecked={user.marketingOptIn}
+                    className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
+                  />
+                  <span>
+                    Me recontacter par e-mail pour les prochaines sessions gratuites et les offres d&apos;abonnement.
+                  </span>
+                </label>
+              </SaveForm>
+            </div>
+          </>
+        )}
       </section>
 
       <section className="space-y-4">
@@ -267,8 +291,37 @@ export default async function ProfilPage() {
                     "Fermé aux inscriptions"
                   )}
                   {" · "}
-                  {freeLink._count.users} inscrit{freeLink._count.users > 1 ? "s" : ""}
+                  {freeLink.users.length} inscrit{freeLink.users.length > 1 ? "s" : ""}
+                  {" · "}
+                  {optIns} d&apos;accord pour être recontacté{optIns > 1 ? "s" : ""}
                 </p>
+                {freeLink.users.length > 0 && (
+                  <details className="rounded-2xl border border-line">
+                    <summary className="cursor-pointer px-4 py-3 text-sm font-medium">Inscrits</summary>
+                    <ul className="divide-y divide-line/70 border-t border-line/70">
+                      {freeLink.users.map((u) => (
+                        <li key={u.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                          <span className="min-w-0">
+                            <span className="block truncate font-medium">{u.name || "—"}</span>
+                            <span className="block truncate text-xs text-muted">{u.email}</span>
+                          </span>
+                          <span className={`shrink-0 text-xs ${u.marketingOptIn ? "text-brand" : "text-muted"}`}>
+                            {u.marketingOptIn ? "✓ recontact" : "pas d'accord"}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+                {optIns > 0 && (
+                  <a
+                    href="/api/acces/contacts"
+                    download
+                    className="block rounded-full border border-line px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-brand"
+                  >
+                    Exporter les contacts (CSV)
+                  </a>
+                )}
               </>
             )}
             <SaveForm action={saveAccessLink} label={freeLink ? "Enregistrer" : "Créer le lien"}>

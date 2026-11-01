@@ -51,6 +51,9 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   const code = String(formData.get("code") ?? "");
   const link = code ? await db.accessLink.findUnique({ where: { code } }) : null;
   if (code && (!link || !isLinkOpen(link))) return { error: "Ce lien d'accès n'est plus valable." };
+  // Le coach garde le nom et l'e-mail des inscrits du lien pour les recontacter (si accord).
+  if (link && !parsed.data.name) return { error: "Ton prénom est requis" };
+  const optIn = Boolean(link) && formData.get("marketingOptIn") === "on";
 
   const email = parsed.data.email.toLowerCase().trim();
   const exists = await db.user.findUnique({ where: { email } });
@@ -64,6 +67,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
       name: parsed.data.name,
       role: isCoachEmail(email) ? "COACH" : "ATHLETE",
       ...(link && { accessLinkId: link.id, activeProfile: link.profile }),
+      ...(optIn && { marketingOptIn: true, marketingOptInAt: new Date() }),
       prs: { create: {} },
       athlete: { create: {} },
     },
