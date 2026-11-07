@@ -12,7 +12,7 @@ export default async function HistoriquePage() {
     where: { userId: user.id, endedAt: { not: null } },
     orderBy: { endedAt: "desc" },
     take: 60,
-    include: { day: { select: { titre: true } } },
+    include: { day: { select: { titre: true } }, voiceNote: { select: { durationSec: true } } },
   });
 
   const weekStart = startOfWeek(new Date());
@@ -60,6 +60,9 @@ export default async function HistoriquePage() {
                 {formatDateFr(s.endedAt!)} · {s.durationMin} min · volume {Math.round(s.volumeKg)} kg
               </p>
               {s.wodScore && <p className="mt-1 text-sm text-accent">Score WOD : {s.wodScore}</p>}
+              {(s.comment || s.voiceNote) && (
+                <p className="mt-2 text-[0.7rem] uppercase tracking-[0.12em] text-brand">✓ Feedback envoyé au coach</p>
+              )}
               <Link
                 href={`/partager/${s.id}`}
                 className="mt-3 inline-block rounded-full border border-accent/40 px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-accent"

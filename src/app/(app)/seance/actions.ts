@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { programOwnerId } from "@/lib/program";
 import { getAccess } from "@/lib/access";
+import { COMMENT_MAX_CHARS } from "@/lib/voice";
 
 const payload = z.object({
   dayId: z.string().min(1),
@@ -18,15 +19,16 @@ const payload = z.object({
     }),
   ),
   wodScore: z.string().trim().min(1).max(200).nullable().optional(),
+  comment: z.string().trim().max(COMMENT_MAX_CHARS).nullable().optional(),
 });
 
 export type FinishInput = z.infer<typeof payload>;
 
-export async function finishSession(input: FinishInput): Promise<{ ok: boolean; error?: string }> {
+export async function finishSession(input: FinishInput): Promise<{ ok: boolean; error?: string; sessionId?: string }> {
   const user = await requireUser();
   const parsed = payload.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Données de séance invalides" };
-  const { dayId, module, startedAt, logs, wodScore } = parsed.data;
+  const { dayId, module, startedAt, logs, wodScore, comment } = parsed.data;
   const [ownerId, access] = await Promise.all([programOwnerId(user), getAccess(user)]);
 
   const day = await db.day.findFirst({
@@ -47,7 +49,7 @@ export async function finishSession(input: FinishInput): Promise<{ ok: boolean; 
   const now = new Date();
   const durationMin = Math.max(1, Math.round((now.getTime() - startedAt) / 60000));
 
-  await db.sessionLog.create({
+  const session = await db.sessionLog.create({
     data: {
       userId: user.id,
       dayId,
@@ -57,10 +59,11 @@ export async function finishSession(input: FinishInput): Promise<{ ok: boolean; 
       durationMin,
       volumeKg: Math.round(volumeKg * 10) / 10,
       wodScore: wodScore ?? null,
+      comment: comment || null,
       exerciceLogs: { create: clean.map((l) => ({ exerciceId: l.exerciceId, sets: l.sets })) },
     },
   });
 
   revalidatePath("/", "layout");
-  return { ok: true };
+  return { ok: true, sessionId: session.id };
 }

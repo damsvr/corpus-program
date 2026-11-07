@@ -370,6 +370,11 @@ export default async function ProfilPage() {
             Vidéos des mouvements →
           </Link>
         )}
+        {user.role === "COACH" && (
+          <Link href="/retours" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
+            Feedback des athlètes →
+          </Link>
+        )}
         <form action={logout}>
           <button type="submit" className="w-full rounded-full border border-line px-6 py-4 text-sm font-bold uppercase tracking-[0.14em] text-muted">
             Déconnexion

@@ -9,6 +9,7 @@ import { shortExerciceName } from "@/lib/share";
 import { planBloc } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
 import { BlocRun } from "./bloc-run";
+import { FeedbackBox, type Feedback } from "./feedback-box";
 import { VideoButton } from "@/components/video-button";
 import { WodClock } from "./wod-clock";
 import {
@@ -134,6 +135,9 @@ export function SessionRunner({
   // Repos en cours des blocs « séquence » : clé = id du premier exercice du groupe.
   const [rests, setRests] = useState<Record<string, Rest | undefined>>({});
   const [wodScores, setWodScores] = useState<Record<string, string | null>>({});
+  const [feedback, setFeedback] = useState<Feedback>({ text: "", audio: null });
+  // Séance déjà enregistrée : un nouvel appui ne la recrée pas, il renvoie seulement le message vocal.
+  const [savedId, setSavedId] = useState<string | null>(null);
 
   useWakeLock();
   const hydrated = useHydrated();
@@ -226,22 +230,48 @@ export function SessionRunner({
     }));
   };
 
+  const uploadVoice = async (sessionId: string, audio: NonNullable<Feedback["audio"]>) => {
+    try {
+      const res = await fetch(`/api/voix/${sessionId}`, {
+        method: "POST",
+        headers: { "Content-Type": audio.mime, "X-Duration-Sec": String(audio.durationSec) },
+        body: audio.blob,
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  };
+
   const finish = () =>
     start(async () => {
       setError(null);
-      const wodScore = Object.values(wodScores).filter(Boolean).join(" · ") || null;
-      const res = await finishSession({
-        dayId,
-        module,
-        startedAt,
-        wodScore,
-        logs: Object.entries(state).map(([exerciceId, sets]) => ({
-          exerciceId,
-          sets: sets.map((x) => ({ kg: num(x.kg), reps: num(x.reps), done: x.done })),
-        })),
-      });
-      if (res.ok) router.push("/historique");
-      else setError(res.error ?? "Erreur");
+      let id = savedId;
+      if (!id) {
+        const wodScore = Object.values(wodScores).filter(Boolean).join(" · ") || null;
+        const res = await finishSession({
+          dayId,
+          module,
+          startedAt,
+          wodScore,
+          comment: feedback.text.trim() || null,
+          logs: Object.entries(state).map(([exerciceId, sets]) => ({
+            exerciceId,
+            sets: sets.map((x) => ({ kg: num(x.kg), reps: num(x.reps), done: x.done })),
+          })),
+        });
+        if (!res.ok || !res.sessionId) {
+          setError(res.error ?? "Erreur");
+          return;
+        }
+        id = res.sessionId;
+        setSavedId(id);
+      }
+      if (feedback.audio && !(await uploadVoice(id, feedback.audio))) {
+        setError("Séance enregistrée, mais le message vocal n'a pas pu être envoyé. Réessaie ou continue sans.");
+        return;
+      }
+      router.push("/historique");
     });
 
   const input =
@@ -411,6 +441,8 @@ export function SessionRunner({
         );
       })}
 
+      <FeedbackBox value={feedback} onChange={setFeedback} disabled={savedId !== null} />
+
       {error && <p role="alert" className="rounded-xl bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>}
       <button
         type="button"
@@ -418,8 +450,13 @@ export function SessionRunner({
         disabled={pending}
         className="grad-accent w-full rounded-full px-6 py-4 text-sm font-bold uppercase tracking-[0.14em] text-black disabled:opacity-60"
       >
-        {pending ? "Enregistrement…" : "Terminer la séance"}
+        {pending ? "Enregistrement…" : savedId ? "Renvoyer le message vocal" : "Terminer la séance"}
       </button>
+      {savedId && (
+        <button type="button" onClick={() => router.push("/historique")} className="block w-full text-center text-[0.7rem] uppercase tracking-[0.12em] text-muted underline-offset-4 hover:underline">
+          Continuer sans le message vocal
+        </button>
+      )}
     </div>
   );
 }

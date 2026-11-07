@@ -217,6 +217,10 @@ model SessionLog {
   // Score du bloc WOD de la séance (temps "MM:SS" ou texte libre type "4
   // rounds + 12 reps"), saisi via le chrono dédié — cf. wod-format.ts.
   wodScore     String?
+  // Retour de l'athlète sur la séance (texte libre, visible de son coach) et
+  // message vocal éventuel (table à part pour ne pas alourdir les listes).
+  comment      String?       @db.Text
+  voiceNote    SessionVoiceNote?
   exerciceLogs ExerciceLog[]
 
   @@index([userId, startedAt])
@@ -243,4 +247,14 @@ model MovementVideo {
   youtubeId String
   startSec  Int?
   updatedAt DateTime @updatedAt
+}
+
+// Message vocal de fin de séance : voix seule, quelques centaines de ko.
+model SessionVoiceNote {
+  sessionId   String     @id
+  session     SessionLog @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  mime        String
+  durationSec Int
+  data        Bytes
+  createdAt   DateTime   @default(now())
 }
