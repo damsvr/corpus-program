@@ -53,7 +53,23 @@ export function embedUrl(v: YoutubeRef): string {
   return `https://www.youtube-nocookie.com/embed/${v.id}?rel=0&playsinline=1${v.start ? `&start=${v.start}` : ""}`;
 }
 
+/**
+ * Terme de recherche d'un mouvement : le nom sans précisions du coach,
+ * première variante quand le coach en donne deux (« Toes-to-bar (RX) / … » ,
+ * « Dead hang / activation »), « + » et tirets remplacés par des espaces.
+ */
+export function searchTerm(nom: string): string {
+  const base = shortExerciceName(nom);
+  const first = base.split(/\s\/\s|\s+ou\s+/i)[0];
+  return first
+    .replace(/^compl[eè]xe\s*:\s*/i, "")
+    .replace(/[+/]/g, " ")
+    .replace(/-/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Repli quand aucune vidéo n'est enregistrée : la recherche YouTube du mouvement existe toujours. */
 export function youtubeSearchUrl(nom: string): string {
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${shortExerciceName(nom)} technique`)}`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${searchTerm(nom)} exercise tutorial`)}`;
 }

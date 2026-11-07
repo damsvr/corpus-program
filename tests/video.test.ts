@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { embedUrl, movementKey, parseYoutube, watchUrl, youtubeSearchUrl } from "@/lib/video";
+import { embedUrl, movementKey, parseYoutube, searchTerm, watchUrl, youtubeSearchUrl } from "@/lib/video";
 
 describe("movementKey", () => {
   it("ignore accents, casse et précisions du coach", () => {
@@ -44,6 +44,18 @@ describe("urls", () => {
     const v = { id: "dQw4w9WgXcQ", start: 30 };
     expect(watchUrl(v)).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=30s");
     expect(embedUrl(v)).toBe("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&playsinline=1&start=30");
-    expect(youtubeSearchUrl("Back squat — tempo 30X1")).toBe("https://www.youtube.com/results?search_query=Back%20squat%20technique");
+    expect(youtubeSearchUrl("Back squat — tempo 30X1")).toBe("https://www.youtube.com/results?search_query=Back%20squat%20exercise%20tutorial");
+  });
+});
+
+describe("searchTerm", () => {
+  it("garde une seule variante, sans précisions ni signes", () => {
+    expect(searchTerm("Toes-to-bar (RX) / Tempo hanging knee raise (scaled)")).toBe("Toes to bar");
+    expect(searchTerm("Dead hang / activation préhension (légère)")).toBe("Dead hang");
+    expect(searchTerm("Wall walk (RX) ou plank walk-up / incline wall walk")).toBe("Wall walk");
+    expect(searchTerm("Arm circles + PVC pass-through")).toBe("Arm circles PVC pass through");
+    expect(searchTerm("Cable/band chop")).toBe("Cable band chop");
+    expect(searchTerm("Complexe : 2 hang power clean + 2 push press")).toBe("2 hang power clean 2 push press");
+    expect(searchTerm("Back squat — tempo 30X1")).toBe("Back squat");
   });
 });
