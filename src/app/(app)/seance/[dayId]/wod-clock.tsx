@@ -1,23 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { VideoButton } from "@/components/video-button";
+import { ExerciseCard } from "@/components/exercise-card";
+import { prescription } from "@/lib/bloc-view";
 import { extractScoreHint, formatClock, parseWodFormat, type WodProgram } from "@/lib/wod-format";
 import type { RunnerExercice } from "./runner";
 import { usePressGuard } from "./timers";
 
 function ExerciceRef({ e }: { e: RunnerExercice }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5">
-      <span className="text-[0.9rem]">
-        {e.nom}
-        <VideoButton nom={e.nom} />
-      </span>
-      <span className="shrink-0 text-right text-[0.68rem] uppercase tracking-[0.1em] text-muted">
-        {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
-      </span>
-    </div>
-  );
+  return <ExerciseCard nom={e.nom} prescription={prescription(e, { keepSets: true })} />;
 }
 
 const bigClock = "font-mono text-6xl font-extrabold tabular-nums text-accent";
@@ -102,7 +93,7 @@ export function WodClock({
   };
 
   const reference = (
-    <div className="mt-4 divide-y divide-line/70 border-t border-line/70">
+    <div className="mt-4 space-y-2.5">
       {exercices.map((e) => (
         <ExerciceRef key={e.id} e={e} />
       ))}
@@ -157,7 +148,7 @@ export function WodClock({
   return (
     <div className="mt-3 space-y-4">
       {program.kind === "emom" && <EmomRunning program={program} elapsed={elapsed} exercices={exercices} />}
-      {program.kind === "interval" && <IntervalRunning program={program} elapsed={elapsed} exercices={exercices} />}
+      {program.kind === "interval" && <IntervalRunning program={program} elapsed={elapsed} />}
       {program.kind === "amrap" && (
         <div className="rounded-3xl border border-accent/40 bg-accent/10 p-6 text-center">
           <p className={bigClock}>{formatClock(program.totalSeconds - elapsed)}</p>
@@ -230,11 +221,9 @@ function EmomRunning({
 function IntervalRunning({
   program,
   elapsed,
-  exercices,
 }: {
   program: Extract<WodProgram, { kind: "interval" }>;
   elapsed: number;
-  exercices: RunnerExercice[];
 }) {
   const round = Math.min(program.totalRounds, Math.floor(elapsed / program.roundSeconds) + 1);
   const secsLeft = program.roundSeconds - (Math.floor(elapsed) % program.roundSeconds);
@@ -244,15 +233,6 @@ function IntervalRunning({
       <p className="mt-2 eyebrow !text-accent">
         Round {round} / {program.totalRounds}
       </p>
-      <div className="mt-3 space-y-1 text-left">
-        <p className="text-[0.68rem] uppercase tracking-[0.12em] text-muted">Mouvements de ce round</p>
-        {exercices.map((e) => (
-          <p key={e.id} className="text-sm">
-            {e.nom}
-            <VideoButton nom={e.nom} /> <span className="text-muted">— {[e.notation, e.charge].filter(Boolean).join(" · ")}</span>
-          </p>
-        ))}
-      </div>
     </div>
   );
 }

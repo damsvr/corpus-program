@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { ModuleType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
-import { MODULE_META } from "@/lib/profiles";
+import { JOURS, MODULE_META } from "@/lib/profiles";
 import { programOwnerId } from "@/lib/program";
 import { getAccess } from "@/lib/access";
 import { parseNotation, repsAsNumber } from "@/lib/format";
@@ -27,7 +27,10 @@ export default async function SeancePage({
 
   const day = await db.day.findFirst({
     where: { id: dayId, week: { AND: [access.weekWhere, { program: { userId: ownerId } }] } },
-    include: { blocs: { orderBy: { ordre: "asc" }, include: { exercices: { orderBy: { ordre: "asc" } } } } },
+    include: {
+      week: { select: { blocNumero: true, semaineDansBloc: true } },
+      blocs: { orderBy: { ordre: "asc" }, include: { exercices: { orderBy: { ordre: "asc" } } } },
+    },
   });
   if (!day) notFound();
 
@@ -59,6 +62,8 @@ export default async function SeancePage({
     warning = "Module Charge : corps frais obligatoire, à faire en premier dans la journée.";
   }
 
+  const weekday = JOURS.find((j) => j.key === day.weekday)?.label ?? null;
+
   const runnerBlocs: RunnerBloc[] = blocs.map((b) => ({
     id: b.id,
     nom: b.nom,
@@ -88,10 +93,17 @@ export default async function SeancePage({
       </Link>
       <div>
         <p className="eyebrow">
-          Jour {day.jour}
+          Bloc {day.week.blocNumero} · Semaine {day.week.semaineDansBloc} · Jour {day.jour}
           {mod ? ` · Module ${MODULE_META[mod].label}` : ""}
         </p>
-        <h1 className="mt-1 text-3xl font-extrabold uppercase leading-tight">{day.titre}</h1>
+        <h1 className="mt-1 text-2xl font-extrabold uppercase leading-tight">{day.titre}</h1>
+        <p className="mt-2 flex flex-wrap items-center gap-2 text-[0.8rem] text-white/80">
+          {weekday && <span className="rounded-full border border-line px-3 py-1 uppercase tracking-[0.1em]">{weekday}</span>}
+          {day.dureeEstimeeMin ? <span>≈ {day.dureeEstimeeMin} min</span> : null}
+          <span>
+            {blocs.length} section{blocs.length > 1 ? "s" : ""}
+          </span>
+        </p>
       </div>
       {warning && <p className="rounded-2xl bg-accent/10 px-4 py-3 text-sm text-accent">{warning}</p>}
       <SessionRunner dayId={day.id} module={mod} blocs={runnerBlocs} />

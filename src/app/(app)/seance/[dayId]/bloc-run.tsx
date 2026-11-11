@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { VideoButton } from "@/components/video-button";
-import { parseNotation } from "@/lib/format";
+import { ExerciseCard, ExerciseGroup } from "@/components/exercise-card";
+import { movementGroups, prescription } from "@/lib/bloc-view";
 import type { BlocPlan } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
-import type { RunnerBloc, RunnerExercice, SetState } from "./runner";
+import type { RunnerBloc, SetState } from "./runner";
 import { REST_GRACE_MS, RestTimer, usePressGuard, type Rest } from "./timers";
 
 type RunPlan = Extract<BlocPlan, { kind: "sets" | "interval" }>;
@@ -113,11 +113,6 @@ export function BlocRun({
 
   const visibleRest = rest && now < rest.endsAt + REST_GRACE_MS ? rest : null;
 
-  const heading =
-    plan.kind === "sets"
-      ? `${plan.total} séries de :`
-      : `${plan.total} rounds · un toutes les ${formatClock(plan.roundSeconds)} :`;
-
   let clock = elapsed;
   let label = "";
   if (plan.kind === "sets") {
@@ -132,8 +127,6 @@ export function BlocRun({
 
   return (
     <div className="mt-4 space-y-4">
-      <p className="eyebrow !text-accent">{heading}</p>
-
       {started && (
         <div
           className={`rounded-3xl border p-5 text-center ${
@@ -171,17 +164,19 @@ export function BlocRun({
 
       {visibleRest && <RestTimer rest={visibleRest} now={now} onSkip={() => setRest(null)} />}
 
-      <ul className="space-y-4">
-        {bloc.exercices.map((e) => (
-          <Movement
-            key={e.id}
-            e={e}
-            slot={started && !finished ? state[e.id]?.[current] : undefined}
-            onChange={(patch) => update(e.id, current, patch)}
-            setNumber={current + 1}
-          />
-        ))}
-      </ul>
+      {movementGroups(bloc.formatEntete, bloc.exercices).map((g, gi) => (
+        <ExerciseGroup key={gi} label={g.label}>
+          {g.items.map((e) => (
+            <Movement
+              key={e.id}
+              e={e}
+              slot={started && !finished ? state[e.id]?.[current] : undefined}
+              onChange={(patch) => update(e.id, current, patch)}
+              setNumber={current + 1}
+            />
+          ))}
+        </ExerciseGroup>
+      ))}
 
       {!started && (
         <button type="button" onClick={guard(start)} className={bigBtn}>
@@ -192,62 +187,46 @@ export function BlocRun({
   );
 }
 
-/** Un mouvement : répétitions à gauche (« 3 », « 5/jambe », « 20'' »), nom, charge ; kg/reps de la série en cours une fois lancé. */
+/** Un mouvement du bloc ; kg/reps de la série en cours une fois le bloc lancé. */
 function Movement({
   e,
   slot,
   onChange,
   setNumber,
 }: {
-  e: RunnerExercice;
+  e: RunnerBloc["exercices"][number];
   slot: SetState | undefined;
   onChange: (patch: Partial<SetState>) => void;
   setNumber: number;
 }) {
-  const reps = parseNotation(e.notation).reps;
   const hasWeight = !!e.charge?.trim();
   const hasReps = e.defaultReps !== null;
   return (
-    <li className="flex gap-3">
-      <span
-        className={`w-[4.75rem] shrink-0 pt-0.5 text-right font-extrabold leading-tight text-accent ${
-          reps.length > 4 ? "text-sm" : "text-base"
-        }`}
-      >
-        {reps || "·"}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[0.95rem] font-medium leading-snug">
-          {e.nom}
-          <VideoButton nom={e.nom} />
-        </p>
-        {e.charge && <p className="mt-0.5 text-[0.72rem] uppercase tracking-[0.08em] text-muted">{e.charge}</p>}
-        {e.note && <p className="mt-0.5 text-[0.78rem] text-muted">{e.note}</p>}
-        {slot && (hasWeight || hasReps) && (
-          <div className="mt-2 flex items-center gap-2">
-            {hasWeight && (
-              <input
-                aria-label={`Charge série ${setNumber} — ${e.nom}`}
-                inputMode="decimal"
-                placeholder="kg"
-                value={slot.kg}
-                onChange={(ev) => onChange({ kg: ev.target.value })}
-                className={smallInput}
-              />
-            )}
-            {hasReps && (
-              <input
-                aria-label={`Répétitions série ${setNumber} — ${e.nom}`}
-                inputMode="numeric"
-                placeholder="reps"
-                value={slot.reps}
-                onChange={(ev) => onChange({ reps: ev.target.value })}
-                className={smallInput}
-              />
-            )}
-          </div>
-        )}
-      </div>
-    </li>
+    <ExerciseCard nom={e.nom} prescription={prescription(e)} note={e.note}>
+      {slot && (hasWeight || hasReps) && (
+        <div className="mt-2.5 flex items-center gap-2">
+          {hasWeight && (
+            <input
+              aria-label={`Charge série ${setNumber} — ${e.nom}`}
+              inputMode="decimal"
+              placeholder="kg"
+              value={slot.kg}
+              onChange={(ev) => onChange({ kg: ev.target.value })}
+              className={smallInput}
+            />
+          )}
+          {hasReps && (
+            <input
+              aria-label={`Répétitions série ${setNumber} — ${e.nom}`}
+              inputMode="numeric"
+              placeholder="reps"
+              value={slot.reps}
+              onChange={(ev) => onChange({ reps: ev.target.value })}
+              className={smallInput}
+            />
+          )}
+        </div>
+      )}
+    </ExerciseCard>
   );
 }

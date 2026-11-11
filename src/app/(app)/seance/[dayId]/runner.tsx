@@ -10,7 +10,9 @@ import { planBloc } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
 import { BlocRun } from "./bloc-run";
 import { FeedbackBox, type Feedback } from "./feedback-box";
-import { VideoButton } from "@/components/video-button";
+import { BlocHeader } from "@/components/bloc-header";
+import { ExerciseCard, ExerciseGroup } from "@/components/exercise-card";
+import { movementGroups, prescription } from "@/lib/bloc-view";
 import { WodClock } from "./wod-clock";
 import {
   HoldTimerList,
@@ -292,22 +294,11 @@ export function SessionRunner({
       {blocs.map((b, blocIndex) => {
         const kind = classifyBloc(b.nom, b.isWod);
         return (
-          <section key={b.id} className="rounded-3xl border border-line bg-card p-5">
-            <h3 className="flex items-start gap-3 text-base font-bold uppercase">
-              <span className="grad-accent mt-1 h-5 w-1 shrink-0 rounded-full" />
-              <span>
-                {b.nom}
-                {b.dureeMin && kind !== "echauffement" && <span className="text-muted"> ({b.dureeMin}&apos;)</span>}
-              </span>
-            </h3>
-            {b.formatEntete && kind !== "wod" && (
-              <p className="mt-3 rounded-xl bg-bg/60 px-3 py-2 text-sm">{b.formatEntete}</p>
-            )}
-            {b.note && <p className="mt-2 rounded-xl bg-brand/10 px-3 py-2 text-[0.8rem] text-brand">{b.note}</p>}
+          <section key={b.id} className="border-t border-line pt-6">
+            <BlocHeader bloc={b} hideDuration={kind === "echauffement"} />
 
             {kind === "wod" && (
               <>
-                {b.formatEntete && <p className="mt-3 rounded-xl bg-bg/60 px-3 py-2 text-sm">{b.formatEntete}</p>}
                 <WodClock
                   formatEntete={b.formatEntete}
                   exercices={b.exercices}
@@ -319,47 +310,26 @@ export function SessionRunner({
             {kind === "echauffement" && (
               <>
                 <WarmupTimer durationMin={parseDureeMinutes(b.dureeMin)} />
-                <ul className="mt-4 divide-y divide-line/70">
+                <div className="mt-4 space-y-2.5">
                   {b.exercices.map((e) => (
-                    <li key={e.id} className="py-3">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[0.95rem]">
-                          {e.nom}
-                          <VideoButton nom={e.nom} />
-                        </span>
-                        <span className="shrink-0 text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                          {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
-                        </span>
-                      </div>
-                      {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
-                    </li>
+                    <ExerciseCard key={e.id} nom={e.nom} prescription={prescription(e, { keepSets: true })} note={e.note} />
                   ))}
-                </ul>
+                </div>
               </>
             )}
 
             {kind === "mobilite" && (
-              <ul className="mt-4 divide-y divide-line/70">
+              <div className="mt-4 space-y-2.5">
                 {b.exercices.map((e) => {
                   const n = parseNotation(e.notation);
                   const holdSeconds = parseHoldSeconds(n.reps);
                   return (
-                    <li key={e.id} className="py-3">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[0.95rem]">
-                          {e.nom}
-                          <VideoButton nom={e.nom} />
-                        </span>
-                        <span className="shrink-0 text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                          {[e.notation, e.charge, e.repos].filter(Boolean).join(" · ")}
-                        </span>
-                      </div>
-                      {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
+                    <ExerciseCard key={e.id} nom={e.nom} prescription={prescription(e, { keepSets: true })} note={e.note}>
                       {holdSeconds && <HoldTimerList seconds={holdSeconds} sets={n.sets} perSide={isPerSide(n.reps)} />}
-                    </li>
+                    </ExerciseCard>
                   );
                 })}
-              </ul>
+              </div>
             )}
 
             {kind === "travail" &&
@@ -370,70 +340,66 @@ export function SessionRunner({
                 }
                 const groups = restGroups(b.exercices);
                 return (
-                  <div className="mt-4 space-y-5">
-                    {b.exercices.map((e) => {
-                      const n = parseNotation(e.notation);
-                      const timed = parseHoldSeconds(n.reps) !== null;
-                      const hasWeight = !!e.charge?.trim();
-                      const group = groups.find((g) => g.some((x) => x.id === e.id)) ?? [e];
-                      const showGroupRest = group[group.length - 1].id === e.id;
-                      return (
-                        <div key={e.id}>
-                          <div className="flex items-baseline justify-between gap-3">
-                            <span className="text-[0.95rem] font-medium">
-                              {e.nom}
-                              <VideoButton nom={e.nom} />
-                            </span>
-                            <span className="text-right text-[0.7rem] uppercase tracking-[0.1em] text-muted">
-                              {[n.reps, e.charge, e.repos].filter(Boolean).join(" · ")}
-                            </span>
-                          </div>
-                          {e.sets > 1 && (
-                            <p className="mt-0.5 text-[0.68rem] uppercase tracking-[0.1em] text-muted">{e.sets} séries</p>
-                          )}
-                          {e.note && <p className="mt-1 text-[0.78rem] text-muted">{e.note}</p>}
-                          <ul className="mt-2 space-y-2">
-                            {state[e.id].map((s, i) => (
-                              <li key={i} className="flex items-center gap-2">
-                                {hasWeight && (
-                                  <input
-                                    aria-label={`Charge série ${i + 1}`}
-                                    inputMode="decimal"
-                                    placeholder="kg"
-                                    value={s.kg}
-                                    onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
-                                    className={input}
-                                  />
+                  <div className="mt-4 space-y-4">
+                    {movementGroups(b.formatEntete, b.exercices).map((g, gi) => (
+                      <ExerciseGroup key={gi} label={g.label}>
+                        {g.items.map((e) => {
+                          const n = parseNotation(e.notation);
+                          const timed = parseHoldSeconds(n.reps) !== null;
+                          const hasWeight = !!e.charge?.trim();
+                          const group = groups.find((x) => x.some((y) => y.id === e.id)) ?? [e];
+                          const showGroupRest = group[group.length - 1].id === e.id;
+                          return (
+                            <div key={e.id}>
+                              <ExerciseCard nom={e.nom} prescription={prescription(e)} note={e.note}>
+                                {e.sets > 1 && (
+                                  <p className="mt-1 text-[0.68rem] uppercase tracking-[0.1em] text-muted">{e.sets} séries</p>
                                 )}
-                                {!timed && (
-                                  <input
-                                    aria-label={`Répétitions série ${i + 1}`}
-                                    inputMode="numeric"
-                                    placeholder="reps"
-                                    value={s.reps}
-                                    onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
-                                    className={input}
-                                  />
-                                )}
-                                <button
-                                  type="button"
-                                  aria-pressed={s.done}
-                                  onClick={() => toggleSet(blocIndex, b, e, i)}
-                                  className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
-                                    s.done ? "grad-accent text-black" : "border border-line text-muted"
-                                  }`}
-                                >
-                                  {s.done ? "✓ Fait" : "Fait ?"}
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                          {showGroupRest && rests[group[0].id] && (
-                            <RestTimer rest={rests[group[0].id]!} now={now} onSkip={() => dropRest(group[0].id)} />
-                          )}
-                        </div>
-                      );
-                    })}
+                                <ul className="mt-2.5 space-y-2">
+                                  {state[e.id].map((s, i) => (
+                                    <li key={i} className="flex items-center gap-2">
+                                      {hasWeight && (
+                                        <input
+                                          aria-label={`Charge série ${i + 1}`}
+                                          inputMode="decimal"
+                                          placeholder="kg"
+                                          value={s.kg}
+                                          onChange={(ev) => update(e.id, i, { kg: ev.target.value })}
+                                          className={input}
+                                        />
+                                      )}
+                                      {!timed && (
+                                        <input
+                                          aria-label={`Répétitions série ${i + 1}`}
+                                          inputMode="numeric"
+                                          placeholder="reps"
+                                          value={s.reps}
+                                          onChange={(ev) => update(e.id, i, { reps: ev.target.value })}
+                                          className={input}
+                                        />
+                                      )}
+                                      <button
+                                        type="button"
+                                        aria-pressed={s.done}
+                                        onClick={() => toggleSet(blocIndex, b, e, i)}
+                                        className={`ml-auto rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] ${
+                                          s.done ? "grad-accent text-black" : "border border-line text-muted"
+                                        }`}
+                                      >
+                                        {s.done ? "✓ Fait" : "Fait ?"}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </ExerciseCard>
+                              {showGroupRest && rests[group[0].id] && (
+                                <RestTimer rest={rests[group[0].id]!} now={now} onSkip={() => dropRest(group[0].id)} />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </ExerciseGroup>
+                    ))}
                   </div>
                 );
               })()}
