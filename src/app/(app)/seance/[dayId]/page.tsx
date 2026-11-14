@@ -7,6 +7,10 @@ import { JOURS, MODULE_META } from "@/lib/profiles";
 import { programOwnerId } from "@/lib/program";
 import { getAccess } from "@/lib/access";
 import { parseNotation, repsAsNumber } from "@/lib/format";
+import { personalizeCharge } from "@/lib/load-calc";
+import { isOptionalBloc, shortVersionSavings } from "@/lib/session-plan";
+import { anyVariants } from "@/lib/variants";
+import { VariantToggle } from "@/components/variant";
 import { SessionRunner, type RunnerBloc } from "./runner";
 
 export const metadata = { title: "Séance — Corpus Program" };
@@ -18,7 +22,7 @@ export default async function SeancePage({
   searchParams,
 }: {
   params: Promise<{ dayId: string }>;
-  searchParams: Promise<{ module?: string }>;
+  searchParams: Promise<{ module?: string; court?: string }>;
 }) {
   const { dayId } = await params;
   const sp = await searchParams;
@@ -38,9 +42,16 @@ export default async function SeancePage({
   // Un bloc sans module (échauffement général hors budget des 20 min) est
   // rattaché au lancement du module Charge, seul module garanti en premier
   // dans la journée — sinon il ne serait jamais accessible via un module précis.
-  const blocs = day.blocs.filter((b) =>
+  const inModule = day.blocs.filter((b) =>
     mod ? b.module === mod || (mod === "CHARGE" && b.module === null) : true,
   );
+  // Version courte : retire les sections optionnelles (complémentaire, finisher…) quand le temps manque.
+  const savings = shortVersionSavings(inModule);
+  const hasOptional = inModule.some(isOptionalBloc);
+  const short = sp.court === "1" && hasOptional;
+  const blocs = short ? inModule.filter((b) => !isOptionalBloc(b)) : inModule;
+  const prs = await db.prs.findUnique({ where: { userId: user.id } });
+  let needsPr = false;
 
   // Règle de placement Functional : le module Moteur vient ≥ 20 min après Charge.
   let warning: string | null = null;
@@ -71,13 +82,17 @@ export default async function SeancePage({
     formatEntete: b.formatEntete,
     note: b.note,
     isWod: b.isWod,
+    optionnel: b.optionnel,
     exercices: b.exercices.map((e) => {
       const n = parseNotation(e.notation);
+      // % TM / % PDC → kg d'après les PR de l'athlète.
+      const charge = personalizeCharge(e.nom, e.charge, prs);
+      if (charge.unresolved) needsPr = true;
       return {
         id: e.id,
         nom: e.nom,
         notation: e.notation,
-        charge: e.charge,
+        charge: charge.text || e.charge,
         repos: e.repos,
         note: e.note,
         sets: n.sets,
@@ -106,7 +121,32 @@ export default async function SeancePage({
         </p>
       </div>
       {warning && <p className="rounded-2xl bg-accent/10 px-4 py-3 text-sm text-accent">{warning}</p>}
-      <SessionRunner dayId={day.id} module={mod} blocs={runnerBlocs} />
+      {hasOptional && (
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-card px-4 py-3">
+          <p className="text-[0.78rem] text-muted">
+            {short
+              ? `Version courte${savings ? ` : environ ${savings} min en moins` : ""} — sections optionnelles retirées.`
+              : `Pas le temps ? La version courte retire les sections optionnelles${savings ? ` (≈ ${savings} min)` : ""}.`}
+          </p>
+          <Link
+            href={`/seance/${day.id}?${[mod ? `module=${mod}` : "", short ? "" : "court=1"].filter(Boolean).join("&")}`}
+            className="shrink-0 rounded-full border border-accent/50 px-4 py-2 text-[0.68rem] font-bold uppercase tracking-[0.12em] text-accent"
+          >
+            {short ? "Séance complète" : "Version courte"}
+          </Link>
+        </div>
+      )}
+      {anyVariants(blocs) && <VariantToggle />}
+      {needsPr && (
+        <p className="rounded-2xl border border-line bg-card px-4 py-3 text-[0.78rem] text-muted">
+          Renseigne tes records dans{" "}
+          <Link href="/profil" className="text-accent underline underline-offset-2">
+            ton profil
+          </Link>{" "}
+          pour voir tes charges en kg (% TM, % du poids de corps).
+        </p>
+      )}
+      <SessionRunner key={short ? "court" : "complet"} dayId={day.id} module={mod} blocs={runnerBlocs} />
     </div>
   );
 }

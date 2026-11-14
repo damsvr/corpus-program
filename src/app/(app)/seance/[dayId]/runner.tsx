@@ -12,7 +12,7 @@ import { BlocRun } from "./bloc-run";
 import { FeedbackBox, type Feedback } from "./feedback-box";
 import { BlocHeader } from "@/components/bloc-header";
 import { ExerciseCard, ExerciseGroup } from "@/components/exercise-card";
-import { movementGroups, prescription } from "@/lib/bloc-view";
+import { movementGroups } from "@/lib/bloc-view";
 import { WodClock } from "./wod-clock";
 import {
   HoldTimerList,
@@ -39,6 +39,7 @@ export type RunnerBloc = {
   formatEntete: string | null;
   note: string | null;
   isWod: boolean;
+  optionnel: boolean;
   exercices: RunnerExercice[];
 };
 
@@ -312,7 +313,7 @@ export function SessionRunner({
                 <WarmupTimer durationMin={parseDureeMinutes(b.dureeMin)} />
                 <div className="mt-4 space-y-2.5">
                   {b.exercices.map((e) => (
-                    <ExerciseCard key={e.id} nom={e.nom} prescription={prescription(e, { keepSets: true })} note={e.note} />
+                    <ExerciseCard key={e.id} ex={e} keepSets note={e.note} />
                   ))}
                 </div>
               </>
@@ -324,7 +325,7 @@ export function SessionRunner({
                   const n = parseNotation(e.notation);
                   const holdSeconds = parseHoldSeconds(n.reps);
                   return (
-                    <ExerciseCard key={e.id} nom={e.nom} prescription={prescription(e, { keepSets: true })} note={e.note}>
+                    <ExerciseCard key={e.id} ex={e} keepSets note={e.note}>
                       {holdSeconds && <HoldTimerList seconds={holdSeconds} sets={n.sets} perSide={isPerSide(n.reps)} />}
                     </ExerciseCard>
                   );
@@ -351,7 +352,7 @@ export function SessionRunner({
                           const showGroupRest = group[group.length - 1].id === e.id;
                           return (
                             <div key={e.id}>
-                              <ExerciseCard nom={e.nom} prescription={prescription(e)} note={e.note}>
+                              <ExerciseCard ex={e} note={e.note}>
                                 {e.sets > 1 && (
                                   <p className="mt-1 text-[0.68rem] uppercase tracking-[0.1em] text-muted">{e.sets} séries</p>
                                 )}

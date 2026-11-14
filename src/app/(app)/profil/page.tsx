@@ -6,10 +6,12 @@ import { JOURS, PROFILE_KEYS, PROFILE_META } from "@/lib/profiles";
 import { getPublicationStatus } from "@/lib/program";
 import { SaveForm } from "@/components/save-form";
 import { TimeInput } from "@/components/time-input";
+import { FrequencyPicker } from "@/components/frequency-picker";
+import { normalizeSessionsPerWeek } from "@/lib/session-plan";
 import { CopyLink } from "@/components/copy-link";
 import { InstagramContact } from "@/components/instagram-contact";
 import { getAccess, isCycleOver, isLinkOpen } from "@/lib/access";
-import { logout, saveAccessLink, saveAthlete, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
+import { logout, saveAccessLink, saveAthlete, saveFrequency, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
 
 export const metadata = { title: "Profil — Corpus Program" };
 
@@ -218,6 +220,18 @@ export default async function ProfilPage() {
                 <option value="DEPLACEMENT">Mode déplacement</option>
               </select>
             </label>
+          </SaveForm>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <p className="eyebrow">Rythme d&apos;entraînement</p>
+        <div className="rounded-3xl border border-line bg-card p-5">
+          <SaveForm action={saveFrequency}>
+            <FrequencyPicker defaultValue={normalizeSessionsPerWeek(user.sessionsPerWeek)} />
+            <p className="text-[0.72rem] text-muted">
+              À 3×, la séance la plus facile à retirer est signalée ; à 5×, une séance légère (zone 2, mobilité) est conseillée en plus.
+            </p>
           </SaveForm>
         </div>
       </section>

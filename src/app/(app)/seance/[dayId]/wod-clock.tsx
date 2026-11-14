@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { ExerciseCard } from "@/components/exercise-card";
-import { prescription } from "@/lib/bloc-view";
 import { extractScoreHint, formatClock, parseWodFormat, type WodProgram } from "@/lib/wod-format";
 import type { RunnerExercice } from "./runner";
 import { usePressGuard } from "./timers";
 
 function ExerciceRef({ e }: { e: RunnerExercice }) {
-  return <ExerciseCard nom={e.nom} prescription={prescription(e, { keepSets: true })} />;
+  return <ExerciseCard ex={e} keepSets />;
 }
 
 const bigClock = "font-mono text-6xl font-extrabold tabular-nums text-accent";

@@ -63,6 +63,8 @@ model User {
   // Profil d'entraînement actif : pilote la teinte d'accent de l'app.
   activeProfile      ProfileType        @default(CROSSFIT)
   reminderTime       String?            @default("07:00")
+  // Séances par semaine visées (3, 4 ou 5) : à 3, la séance sautable est signalée ; à 5, une séance légère est conseillée.
+  sessionsPerWeek    Int                @default(4)
   // Inscrit via un lien d'accès gratuit : verrouillé sur le profil du lien et
   // limité aux semaines du cycle couvert (cf. src/lib/access.ts).
   accessLinkId       String?
@@ -163,6 +165,8 @@ model Day {
   // pré-rempli depuis semaine.jours de l'import, modifiable dans l'app
   // ("L'ordre des jours s'adapte à ton emploi du temps").
   weekday         String?
+  // Séance sautable quand l'athlète s'entraîne 3×/semaine (JSON : seance.optionnelle).
+  optionnel       Boolean      @default(false)
   dureeEstimeeMin Int?
   titre           String
   blocs           Bloc[]
@@ -180,6 +184,8 @@ model Bloc {
   module       ModuleType? // Functional uniquement
   dureeMin     String?
   isWod        Boolean     @default(false)
+  // Section à retirer en « version courte » quand le temps manque (JSON : bloc.optionnel).
+  optionnel    Boolean     @default(false)
   formatEntete String?
   note         String?
   exercices    Exercice[]

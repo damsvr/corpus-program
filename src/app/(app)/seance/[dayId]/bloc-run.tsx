@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ExerciseCard, ExerciseGroup } from "@/components/exercise-card";
-import { movementGroups, prescription } from "@/lib/bloc-view";
+import { movementGroups } from "@/lib/bloc-view";
 import type { BlocPlan } from "@/lib/bloc-plan";
 import { formatClock } from "@/lib/wod-format";
 import type { RunnerBloc, SetState } from "./runner";
@@ -202,7 +202,7 @@ function Movement({
   const hasWeight = !!e.charge?.trim();
   const hasReps = e.defaultReps !== null;
   return (
-    <ExerciseCard nom={e.nom} prescription={prescription(e)} note={e.note}>
+    <ExerciseCard ex={e} note={e.note}>
       {slot && (hasWeight || hasReps) && (
         <div className="mt-2.5 flex items-center gap-2">
           {hasWeight && (

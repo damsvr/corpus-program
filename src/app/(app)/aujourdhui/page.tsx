@@ -9,6 +9,8 @@ import { AccessEnded } from "@/components/access-ended";
 import { InstagramContact } from "@/components/instagram-contact";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
+import { FrequencyNote, SkippableBadge, WeekTypeBanner } from "@/components/week-notes";
+import { normalizeSessionsPerWeek, skippableDayId } from "@/lib/session-plan";
 
 export const metadata = { title: "Aujourd'hui — Corpus Program" };
 
@@ -54,6 +56,8 @@ export default async function AujourdhuiPage() {
     done.some((s) => s.dayId === dayId && s.module === module);
 
   const training = week.days.filter((d) => d.jourType === "ENTRAINEMENT");
+  const perWeek = normalizeSessionsPerWeek(user.sessionsPerWeek);
+  const skipId = perWeek === 3 ? skippableDayId(training) : null;
   const tampon = week.days.find((d) => d.jourType === "TAMPON");
 
   const missed: string[] = [];
@@ -84,6 +88,9 @@ export default async function AujourdhuiPage() {
         </div>
       </section>
 
+      <WeekTypeBanner type={week.type} note={week.note} />
+      <FrequencyNote sessionsPerWeek={perWeek} />
+
       <Link
         href="/programme"
         className="flex items-center justify-between rounded-3xl border border-line bg-card px-6 py-5 text-lg font-extrabold uppercase"
@@ -94,7 +101,7 @@ export default async function AujourdhuiPage() {
       <p className="eyebrow">Séances de la semaine — dans l&apos;ordre que tu veux</p>
 
       {training.map((day) => (
-        <DayCard key={day.id} day={day} isDone={isDone} isCoach={user.role === "COACH"} />
+        <DayCard key={day.id} day={day} isDone={isDone} isCoach={user.role === "COACH"} skippable={day.id === skipId} />
       ))}
 
       {tampon && (
@@ -138,20 +145,23 @@ function DayCard({
   day,
   isDone,
   isCoach,
+  skippable,
 }: {
   day: DayFull;
   isDone: (dayId: string, module: ModuleType | null) => boolean;
   isCoach: boolean;
+  skippable: boolean;
 }) {
   const sets = day.blocs.reduce((a, b) => a + countSets(b), 0);
   const hasModules = day.blocs.some((b) => b.module);
   return (
-    <section className="rounded-3xl border border-line bg-card p-6">
+    <section className={`rounded-3xl border border-line bg-card p-6 ${skippable ? "opacity-80" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <p className="eyebrow !text-brand">Jour {day.jour}</p>
             <WeekdaySelect dayId={day.id} value={day.weekday} readOnly={!isCoach} />
+            {skippable && <SkippableBadge />}
           </div>
           <h2 className="mt-1 text-2xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           <p className="eyebrow mt-2">

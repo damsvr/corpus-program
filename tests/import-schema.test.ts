@@ -298,3 +298,22 @@ describe("explainJsonError", () => {
     expect(msg).toContain('"box 20" ▶ jump"');
   });
 });
+
+describe("import — charges chiffrées et optionnel", () => {
+  it("avertit quand un mouvement barre avec PR n'a pas de charge chiffrée", () => {
+    const w = crossfitWeek() as unknown as { seances: { optionnelle?: boolean; blocs: Record<string, unknown>[] }[] };
+    w.seances[0].blocs.push({
+      nom: "BLOC A — FORCE",
+      duree_min: 20,
+      exercices: [ex("Back squat", { charge: "modérée" }), ex("Snatch", { charge: "70% TM" })],
+    });
+    const r = validateImport(w);
+    expect(r.warnings.some((x) => x.includes("charge non chiffrée") && x.includes("Back squat") && !x.includes("Snatch"))).toBe(true);
+  });
+  it("accepte les marques optionnel / optionnelle", () => {
+    const w = crossfitWeek() as unknown as { seances: { optionnelle?: boolean; blocs: Record<string, unknown>[] }[] };
+    w.seances[0].optionnelle = true;
+    w.seances[0].blocs[0].optionnel = true;
+    expect(validateImport(w).ok).toBe(true);
+  });
+});

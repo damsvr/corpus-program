@@ -8,6 +8,11 @@ import { BlocCard } from "@/components/bloc-card";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 import { weekLabel } from "@/lib/week-label";
+import { db } from "@/lib/db";
+import { FrequencyNote, SkippableBadge, WeekTypeBanner } from "@/components/week-notes";
+import { VariantToggle } from "@/components/variant";
+import { anyVariants } from "@/lib/variants";
+import { normalizeSessionsPerWeek, skippableDayId } from "@/lib/session-plan";
 
 const weekdayLabel = (key: string | null) => JOURS.find((j) => j.key === key)?.label ?? null;
 
@@ -57,6 +62,9 @@ export default async function ProgrammePage({
 
   const requestedDay = sp.j ? parseInt(sp.j, 10) : undefined;
   const day = week.days.find((d) => d.jour === requestedDay) ?? week.days[0];
+  const prs = await db.prs.findUnique({ where: { userId: user.id } });
+  const perWeek = normalizeSessionsPerWeek(user.sessionsPerWeek);
+  const skipId = perWeek === 3 ? skippableDayId(week.days) : null;
 
   return (
     <div className="space-y-6">
@@ -72,6 +80,9 @@ export default async function ProgrammePage({
           </Link>
         ))}
       </div>
+
+      <WeekTypeBanner type={week.type} note={week.note} />
+      <FrequencyNote sessionsPerWeek={perWeek} />
 
       <p className="eyebrow">Séances de la semaine — dans l&apos;ordre que tu veux</p>
       <div className="flex gap-3 overflow-x-auto">
@@ -99,6 +110,7 @@ export default async function ProgrammePage({
                 Jour {day.jour} · {day.jourType === "TAMPON" ? "Jour tampon" : "Séance"}
                 {day.dureeEstimeeMin ? ` · ≈ ${day.dureeEstimeeMin} min` : ""}
               </p>
+              {day.id === skipId && <SkippableBadge />}
               {day.jourType !== "TAMPON" && (
                 <WeekdaySelect dayId={day.id} value={day.weekday} readOnly={!isCoach} />
               )}
@@ -106,13 +118,15 @@ export default async function ProgrammePage({
             <h2 className="mt-1 text-3xl font-extrabold uppercase leading-tight">{day.titre}</h2>
           </div>
 
+          {anyVariants(day.blocs) && <VariantToggle />}
+
           {day.blocs.some((b) => b.module) ? (
             <>
               {/* Bloc(s) hors modules (ex. échauffement général) — rattachés au module Charge à l'exécution. */}
               {day.blocs
                 .filter((b) => !b.module)
                 .map((b) => (
-                  <BlocCard key={b.id} bloc={b} />
+                  <BlocCard key={b.id} bloc={b} prs={prs} />
                 ))}
               {MODULES.map((m) => {
                 const blocs = filterModule(day, m);
@@ -123,14 +137,14 @@ export default async function ProgrammePage({
                       Module {MODULE_META[m].label} · 20&apos; — {MODULE_META[m].rule}
                     </p>
                     {blocs.map((b) => (
-                      <BlocCard key={b.id} bloc={b} />
+                      <BlocCard key={b.id} bloc={b} prs={prs} />
                     ))}
                   </div>
                 );
               })}
             </>
           ) : (
-            day.blocs.map((b) => <BlocCard key={b.id} bloc={b} />)
+            day.blocs.map((b) => <BlocCard key={b.id} bloc={b} prs={prs} />)
           )}
 
           <StartLink

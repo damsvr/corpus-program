@@ -58,6 +58,7 @@ export async function importWeek(userId: string, data: ImportedWeek, opts: { rep
           jour: s.jour,
           slot: s.slot ?? null,
           jourType: s.jour_type === "tampon" ? "TAMPON" : "ENTRAINEMENT",
+          optionnel: s.optionnelle ?? false,
           weekday: s.slot ? normalizeWeekday(data.semaine.jours?.[`slot${s.slot}`] ?? "") : null,
           dureeEstimeeMin: s.duree_estimee_min ? Math.round(s.duree_estimee_min) : null,
           titre: s.titre,
@@ -68,6 +69,7 @@ export async function importWeek(userId: string, data: ImportedWeek, opts: { rep
               module: b.module ? (b.module.toUpperCase() as ModuleType) : null,
               dureeMin: b.duree_min !== undefined ? String(b.duree_min) : null,
               isWod: b.type === "wod",
+              optionnel: b.optionnel ?? false,
               formatEntete: b.format_entete ?? null,
               note: b.note ?? null,
               exercices: {

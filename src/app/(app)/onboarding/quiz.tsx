@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { FrequencyPicker } from "@/components/frequency-picker";
 import { setProfile } from "../profil/actions";
 
 const QUESTIONS = [
@@ -46,8 +47,9 @@ export function Quiz() {
         <p className="eyebrow">Ton profil</p>
         <p className="grad-text text-5xl font-extrabold">{r.label}</p>
         <p className="text-lg">{r.promise}</p>
-        <form action={setProfile}>
+        <form action={setProfile} className="space-y-5">
           <input type="hidden" name="profile" value={result} />
+          <FrequencyPicker defaultValue={4} />
           <button type="submit" className="grad-accent w-full rounded-full px-6 py-4 text-sm font-bold uppercase tracking-[0.14em] text-black">
             Choisir {r.label}
           </button>

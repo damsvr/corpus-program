@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { PROFILE_KEYS } from "@/lib/profiles";
 import { requireCoach, requireUser } from "@/lib/session";
 import { endOfDay, newAccessCode } from "@/lib/access";
+import { normalizeSessionsPerWeek } from "@/lib/session-plan";
 import type { SaveState } from "@/components/save-form";
 
 const kg = z
@@ -81,8 +82,26 @@ export async function setProfile(fd: FormData) {
   if (!(PROFILE_KEYS as readonly string[]).includes(p)) return;
   // Inscrit via un lien d'accès gratuit : profil verrouillé sur celui du lien.
   if (user.accessLinkId) return;
-  await db.user.update({ where: { id: user.id }, data: { activeProfile: p as (typeof PROFILE_KEYS)[number] } });
+  // Le quiz propose aussi le nombre de séances par semaine (3, 4 ou 5).
+  const freq = fd.get("sessionsPerWeek");
+  await db.user.update({
+    where: { id: user.id },
+    data: {
+      activeProfile: p as (typeof PROFILE_KEYS)[number],
+      ...(freq !== null ? { sessionsPerWeek: normalizeSessionsPerWeek(Number(freq)) } : {}),
+    },
+  });
   revalidatePath("/", "layout");
+}
+
+export async function saveFrequency(_p: SaveState, fd: FormData): Promise<SaveState> {
+  const user = await requireUser();
+  await db.user.update({
+    where: { id: user.id },
+    data: { sessionsPerWeek: normalizeSessionsPerWeek(Number(fd.get("sessionsPerWeek"))) },
+  });
+  revalidatePath("/", "layout");
+  return { ok: true };
 }
 
 const accessLinkSchema = z

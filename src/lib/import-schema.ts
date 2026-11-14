@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isInformationalBloc } from "@/lib/format";
+import { hasPrLift } from "@/lib/load-calc";
 
 /**
  * Validation stricte du JSON produit par les agents (docs/agents/01-schema-sortie-commun.md).
@@ -53,6 +54,8 @@ const blocSchema = z.object({
   nom: z.string().min(1, "nom de bloc vide"),
   duree_min: dureeSchema.optional(),
   type: z.literal("wod").optional(),
+  // Section retirable en « version courte » quand le temps manque (complémentaire, finisher…).
+  optionnel: z.boolean().optional(),
   module: z.enum(["charge", "volume", "moteur"]).optional(),
   format_entete: z.string().optional(),
   note: z.string().optional(),
@@ -67,6 +70,8 @@ const seanceSchema = z.object({
   jour: z.number().int().min(1).max(7),
   jour_type: z.enum(["entrainement", "tampon"]).default("entrainement"),
   duree_estimee_min: z.number().positive().optional(),
+  // Séance sautable quand l'athlète s'entraîne 3×/semaine au lieu de 4.
+  optionnelle: z.boolean().optional(),
   titre: z.string().min(1, "titre de séance vide"),
   blocs: z.array(blocSchema).min(1, "une séance doit contenir au moins un bloc"),
 });
@@ -115,6 +120,10 @@ export function parseDuree(v: number | string | undefined): number | null {
 const OLYMPIQUE = /\b(snatch|arraché|arrache|clean|épaulé|epaule|jerk|jeté|jete)\b/i;
 const ACCESSIBLE = /\b(dumbbell|db|kb|kettlebell|landmine|haltère|haltere|med ?ball)\b/i;
 const ELAN = /\b(kipping|kip|muscle-?up|butterfly)\b/i;
+// Charge exprimable en kg : chiffre, ou « barre à vide » / poids de corps.
+const CHARGE_CHIFFREE = /\d|barre (à vide|seule)|pvc|\bbw\b|poids de corps|même charge|même barre/i;
+
+const shortName = (nom: string) => nom.split(/\s[—–-]\s|\s\(/)[0].trim();
 
 function formatPath(path: PropertyKey[]): string {
   return path
@@ -154,8 +163,16 @@ export function validateImport(input: unknown): ImportResult {
     if (s.jour_type === "entrainement" && s.slot !== undefined && s.slot > 4) {
       errors.push(`${label} : slot ${s.slot} invalide — attendu entre 1 et 4 pour une séance d'entraînement`);
     }
+    // Un mouvement barre avec PR (squat, soulevé, arraché, épaulé-jeté, développés) sans charge
+    // chiffrée : l'app ne peut pas la convertir en kg pour l'athlète.
+    const qualitatifs = new Set<string>();
     s.blocs.forEach((b, bi) => {
       const bl = `${label} › bloc ${bi + 1} (« ${b.nom} »)`;
+      if (!isInformationalBloc(b.nom) && b.type !== "wod") {
+        b.exercices.forEach((e) => {
+          if (hasPrLift(e.nom) && !CHARGE_CHIFFREE.test(e.charge ?? "")) qualitatifs.add(shortName(e.nom));
+        });
+      }
       if (b.type === "wod" && !b.format_entete) {
         errors.push(`${bl} : un bloc WOD doit avoir un format_entete (format + scoring)`);
       }
@@ -175,6 +192,11 @@ export function validateImport(input: unknown): ImportResult {
         }
       });
     });
+    if (qualitatifs.size) {
+      warnings.push(
+        `${label} : charge non chiffrée sur ${[...qualitatifs].join(", ")} — exprime-la en % TM (PR de l'athlète) pour que l'app l'affiche en kg`,
+      );
+    }
   });
 
   const entrainement = seances.filter((s) => s.jour_type === "entrainement");
