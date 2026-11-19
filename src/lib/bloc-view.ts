@@ -2,7 +2,7 @@ import { parseNotation } from "@/lib/format";
 import { planBloc } from "@/lib/bloc-plan";
 import { restGroups } from "@/lib/rest-plan";
 import { formatClock, parseWodFormat } from "@/lib/wod-format";
-import { shortExerciceName } from "@/lib/share";
+import { exerciceLabel, shortExerciceName } from "@/lib/share";
 
 /**
  * « BLOC A — SQUAT, MOUVEMENT PRINCIPAL » -> étiquette « BLOC A » + gros titre ;
@@ -59,10 +59,11 @@ export function blocMeta(b: MetaBloc): string[] {
 }
 
 /** Nom du mouvement en titre, précisions du coach (« — tempo 30X1 », « (RX) ») en détail. */
-export function splitMovement(nom: string): { title: string; detail: string | null } {
-  const title = shortExerciceName(nom);
-  const rest = nom.slice(title.length).replace(/^\s*[—–-]\s*/, "").trim();
-  return { title, detail: rest || null };
+export function splitMovement(nom: string): { label: string | null; title: string; detail: string | null } {
+  const { label, rest: body } = exerciceLabel(nom);
+  const title = shortExerciceName(body);
+  const rest = body.slice(title.length).replace(/^\s*[—–-]\s*/, "").trim();
+  return { label, title, detail: rest || null };
 }
 
 /**

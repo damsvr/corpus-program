@@ -39,9 +39,16 @@ describe("blocMeta", () => {
 
 describe("splitMovement / prescription", () => {
   it("nom en titre, précisions en détail", () => {
-    expect(splitMovement("Box squat — tempo 30X1, amplitude à la hauteur de box")).toEqual({ title: "Box squat", detail: "tempo 30X1, amplitude à la hauteur de box" });
+    expect(splitMovement("Box squat — tempo 30X1, amplitude à la hauteur de box")).toEqual({ label: null, title: "Box squat", detail: "tempo 30X1, amplitude à la hauteur de box" });
     expect(splitMovement("Toes-to-bar (RX) / Tempo hanging knee raise (scaled)").title).toBe("Toes-to-bar");
-    expect(splitMovement("Wall sit")).toEqual({ title: "Wall sit", detail: null });
+    expect(splitMovement("Wall sit")).toEqual({ label: null, title: "Wall sit", detail: null });
+    expect(splitMovement("B1 — Sumo deadlift — pieds larges, genoux poussés vers l'extérieur")).toEqual({
+      label: "B1",
+      title: "Sumo deadlift",
+      detail: "pieds larges, genoux poussés vers l'extérieur",
+    });
+    expect(splitMovement("A2. Pull-up strict")).toEqual({ label: "A2", title: "Pull-up strict", detail: null });
+    expect(splitMovement("2K row").label).toBeNull();
   });
   it("sans le multiplicateur de séries", () => {
     expect(prescription({ notation: "5×5", charge: "70% TM", repos: "R 2'" })).toBe("5 · 70% TM · R 2'");

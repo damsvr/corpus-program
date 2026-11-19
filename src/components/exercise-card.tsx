@@ -36,7 +36,7 @@ export function ExerciseCard({
   const active = override ?? mode;
   const view = variants ? applyVariant(ex, active) : ex;
   const nom = view.nom;
-  const { title, detail } = splitMovement(nom);
+  const { label, title, detail } = splitMovement(nom);
   const prescription = buildPrescription(view, { keepSets });
   // Répétitions en accent, charge / repos en retrait (la charge peut être un long texte du coach).
   const [lead, ...restParts] = (prescription ?? "").split(" · ");
@@ -45,14 +45,15 @@ export function ExerciseCard({
     <div className="flex overflow-hidden rounded-2xl border border-line bg-card2/70">
       <MovementThumb nom={nom} className="w-[5.25rem] shrink-0 self-stretch sm:w-28" />
       <div className="min-w-0 flex-1 px-3.5 py-3">
-        <p className="text-[0.92rem] font-bold uppercase leading-snug tracking-[0.01em]">{title}</p>
+        {label && <p className="eyebrow !text-brand">{label}</p>}
+        <p className="text-[1.05rem] font-extrabold uppercase leading-tight tracking-[0.01em]">{title}</p>
         {lead && (
           <p className="mt-0.5 text-[0.8rem] leading-snug">
             <span className="font-bold text-accent">{lead}</span>
             {rest && <span className="text-white/70"> · {rest}</span>}
           </p>
         )}
-        {detail && <p className="mt-0.5 text-[0.76rem] leading-snug text-muted">{detail}</p>}
+        {detail && <p className="mt-1 text-[0.76rem] italic leading-snug text-muted">{detail}</p>}
         {variants && (
           <button
             type="button"

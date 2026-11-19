@@ -61,8 +61,17 @@ export type SetsSummary = {
 };
 
 /** "Back squat — barre à vide" -> "Back squat" ; "Tirage (variante)" -> "Tirage". */
+/** Repère d'ordre écrit par le coach devant le nom : « B1 — Sumo deadlift… », « A2. Pull-up ». */
+const LABEL = /^([A-Z]\d{1,2})\s*[—–:.)-]\s*/;
+
+export function exerciceLabel(nom: string): { label: string | null; rest: string } {
+  const m = nom.match(LABEL);
+  return m ? { label: m[1], rest: nom.slice(m[0].length) } : { label: null, rest: nom };
+}
+
+/** Nom du mouvement seul : sans repère « B1 », sans précision après « — » ni parenthèse. */
 export function shortExerciceName(nom: string): string {
-  return nom.split(/\s[—–-]\s|\s*\(/)[0].trim();
+  return exerciceLabel(nom).rest.split(/\s[—–-]\s|\s*\(/)[0].trim();
 }
 
 export function summarizeSets(logs: LoggedExercice[]): SetsSummary {

@@ -59,3 +59,11 @@ describe("searchTerm", () => {
     expect(searchTerm("Back squat — tempo 30X1")).toBe("Back squat");
   });
 });
+
+describe("repère d'ordre (B1 —) dans le nom", () => {
+  it("la clé vidéo et la recherche utilisent le vrai nom du mouvement", async () => {
+    const { movementKey, searchTerm } = await import("@/lib/video");
+    expect(movementKey("B1 — Sumo deadlift — pieds larges")).toBe("sumo deadlift");
+    expect(searchTerm("B2 — Banded psoas march — allongé")).toBe("Banded psoas march");
+  });
+});
