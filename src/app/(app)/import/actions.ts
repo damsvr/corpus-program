@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { explainJsonError, validateImport } from "@/lib/import-schema";
 import { ImportConflictError, importWeek } from "@/lib/import-week";
 import { requireCoach, requireUser } from "@/lib/session";
+import { getCycleStarts } from "@/lib/program";
+import { formatRange, weekStart } from "@/lib/week-label";
 
 export type ImportPreview =
   | {
       ok: true;
       warnings: string[];
-      summary: { profil: string; bloc: number; semaine: number; type: string; total: number | null; seances: { titre: string; jour: number; jourType: string; blocs: number; min: number | null }[] };
+      summary: { dates: string | null; profil: string; bloc: number; semaine: number; type: string; total: number | null; seances: { titre: string; jour: number; jourType: string; blocs: number; min: number | null }[] };
     }
   | { ok: false; errors: string[]; warnings: string[] };
 
@@ -22,16 +24,18 @@ function parse(text: string): { ok: true; value: unknown } | { ok: false; error:
 }
 
 export async function previewImport(text: string): Promise<ImportPreview> {
-  await requireUser();
+  const user = await requireUser();
   const p = parse(text);
   if (!p.ok) return { ok: false, errors: [p.error], warnings: [] };
   const r = validateImport(p.value);
   if (!r.ok) return r;
   const d = r.data;
+  const start = (await getCycleStarts(user.id)).get(d.bloc.numero);
   return {
     ok: true,
     warnings: r.warnings,
     summary: {
+      dates: start ? formatRange(weekStart(start, d.semaine.numero_dans_le_bloc)) : null,
       profil: d.profil,
       bloc: d.bloc.numero,
       semaine: d.semaine.numero_dans_le_bloc,

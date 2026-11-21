@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { PROFILE_KEYS } from "@/lib/profiles";
 import { requireCoach, requireUser } from "@/lib/session";
 import { endOfDay, newAccessCode } from "@/lib/access";
+import { parseMonday } from "@/lib/week-label";
 import { normalizeSessionsPerWeek } from "@/lib/session-plan";
 import type { SaveState } from "@/components/save-form";
 
@@ -100,6 +101,27 @@ export async function saveFrequency(_p: SaveState, fd: FormData): Promise<SaveSt
     where: { id: user.id },
     data: { sessionsPerWeek: normalizeSessionsPerWeek(Number(fd.get("sessionsPerWeek"))) },
   });
+  revalidatePath("/", "layout");
+  return { ok: true };
+}
+
+/** Calage d'un cycle sur le calendrier : lundi de la semaine 1 (vide = retire les dates). */
+export async function saveCycleStart(_p: SaveState, fd: FormData): Promise<SaveState> {
+  const user = await requireCoach();
+  const blocNumero = Number(fd.get("blocNumero"));
+  if (!Number.isInteger(blocNumero) || blocNumero < 1) return { error: "Cycle invalide" };
+  const raw = String(fd.get("startsOn") ?? "").trim();
+  if (!raw) {
+    await db.cycleCalendar.deleteMany({ where: { userId: user.id, blocNumero } });
+  } else {
+    const startsOn = parseMonday(raw);
+    if (!startsOn) return { error: "Choisis un lundi : les semaines vont du lundi au dimanche." };
+    await db.cycleCalendar.upsert({
+      where: { userId_blocNumero: { userId: user.id, blocNumero } },
+      create: { userId: user.id, blocNumero, startsOn },
+      update: { startsOn },
+    });
+  }
   revalidatePath("/", "layout");
   return { ok: true };
 }

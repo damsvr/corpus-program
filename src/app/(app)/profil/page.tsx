@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { JOURS, PROFILE_KEYS, PROFILE_META } from "@/lib/profiles";
-import { getPublicationStatus } from "@/lib/program";
+import { getCycleStarts, getPublicationStatus } from "@/lib/program";
+import { formatRange, weekStart } from "@/lib/week-label";
 import { SaveForm } from "@/components/save-form";
 import { TimeInput } from "@/components/time-input";
 import { FrequencyPicker } from "@/components/frequency-picker";
@@ -11,7 +12,7 @@ import { normalizeSessionsPerWeek } from "@/lib/session-plan";
 import { CopyLink } from "@/components/copy-link";
 import { InstagramContact } from "@/components/instagram-contact";
 import { getAccess, isCycleOver, isLinkOpen } from "@/lib/access";
-import { logout, saveAccessLink, saveAthlete, saveFrequency, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
+import { logout, saveAccessLink, saveAthlete, saveCycleStart, saveFrequency, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
 
 export const metadata = { title: "Profil — Corpus Program" };
 
@@ -56,6 +57,12 @@ export default async function ProfilPage() {
         })
       : null,
   ]);
+  // Cycles à caler sur le calendrier : ceux déjà importés + le suivant.
+  const cycleStarts = isCoach ? await getCycleStarts(user.id) : new Map<number, Date>();
+  const cycleNumbers = isCoach
+    ? (await db.week.findMany({ where: { program: { userId: user.id } }, select: { blocNumero: true }, distinct: ["blocNumero"] })).map((w) => w.blocNumero)
+    : [];
+  const cycles = [...new Set([...cycleNumbers, ...cycleStarts.keys(), Math.max(0, ...cycleNumbers, ...cycleStarts.keys()) + 1])].sort((a, b) => b - a);
   const h = await headers();
   const origin = `${h.get("x-forwarded-proto") ?? "http"}://${h.get("x-forwarded-host") ?? h.get("host")}`;
   const shownProfiles = access.link ? [access.link.profile] : PROFILE_KEYS;
@@ -250,6 +257,45 @@ export default async function ProfilPage() {
           </SaveForm>
         </div>
       </section>
+
+      {isCoach && (
+        <section className="space-y-4">
+          <p className="eyebrow">Calendrier des cycles</p>
+          <div className="space-y-4 rounded-3xl border border-line bg-card p-5">
+            <p className="text-sm text-muted">
+              Indique le <strong className="text-white">lundi de la semaine 1</strong> de chaque cycle : chaque semaine est alors
+              datée (ex. « Cycle 3 · Semaine 1 · 04/01/27 au 10/01/27 ») pour tous les athlètes, et « Aujourd&apos;hui » affiche la
+              semaine de calendrier en cours.
+            </p>
+            {cycles.map((n) => {
+              const s = cycleStarts.get(n);
+              return (
+                <SaveForm key={n} action={saveCycleStart}>
+                  <input type="hidden" name="blocNumero" value={n} />
+                  <label className="flex items-center justify-between gap-4">
+                    <span className="text-sm font-bold uppercase">
+                      Cycle {n}
+                      <span className="block text-[0.7rem] font-normal normal-case text-muted">
+                        {s
+                          ? `S1 ${formatRange(weekStart(s, 1), true)} · S6 ${formatRange(weekStart(s, 6), true)}`
+                          : cycleNumbers.includes(n)
+                            ? "pas encore daté"
+                            : "prochain cycle"}
+                      </span>
+                    </span>
+                    <input
+                      type="date"
+                      name="startsOn"
+                      defaultValue={s ? s.toISOString().slice(0, 10) : ""}
+                      className="w-40 rounded-xl border border-line bg-bg/70 px-3 py-2 text-base outline-none focus:border-brand"
+                    />
+                  </label>
+                </SaveForm>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {publication && (
         <section className="space-y-4">

@@ -73,7 +73,10 @@ export function ImportForm() {
         <div className="rounded-3xl border border-line bg-card p-5">
           <p className="eyebrow !text-brand">JSON valide — aperçu</p>
           <p className="mt-2 text-lg font-extrabold uppercase">
-            {preview.summary.profil} · bloc {preview.summary.bloc} · S{preview.summary.semaine} ({preview.summary.type})
+            {preview.summary.profil} · cycle {preview.summary.bloc} · S{preview.summary.semaine} ({preview.summary.type})
+          </p>
+          <p className={`text-sm ${preview.summary.dates ? "text-brand" : "text-amber-200"}`}>
+            {preview.summary.dates ?? "Cycle pas encore daté : indique son lundi de départ dans Profil › Calendrier des cycles."}
           </p>
           {preview.summary.total && <p className="text-sm text-muted">≈ {preview.summary.total} min / semaine</p>}
           <ul className="mt-3 divide-y divide-line/70 text-sm">

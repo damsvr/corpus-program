@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { JOURS, MODULE_META, PROFILE_META } from "@/lib/profiles";
-import { MODULES, filterModule, getActiveProgram, getWeek, programOwnerId } from "@/lib/program";
+import { MODULES, filterModule, getActiveProgram, getCycleStarts, getWeek, programOwnerId } from "@/lib/program";
 import { getAccess } from "@/lib/access";
 import { AccessEnded } from "@/components/access-ended";
 import { BlocCard } from "@/components/bloc-card";
 import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
-import { weekLabel } from "@/lib/week-label";
+import { currentWeekNumero, formatRange, weekLabel, weekStart } from "@/lib/week-label";
 import { db } from "@/lib/db";
 import { FrequencyNote, SkippableBadge, WeekTypeBanner } from "@/components/week-notes";
 import { VariantToggle } from "@/components/variant";
@@ -19,7 +19,7 @@ const weekdayLabel = (key: string | null) => JOURS.find((j) => j.key === key)?.l
 export const metadata = { title: "Programme — Corpus Program" };
 
 const pill = (active: boolean) =>
-  `shrink-0 rounded-full border px-5 py-3 text-xs font-medium uppercase tracking-[0.16em] ${
+  `shrink-0 rounded-2xl border px-5 py-2.5 text-center text-xs font-medium uppercase tracking-[0.16em] ${
     active ? "border-accent text-accent" : "border-line text-white/80"
   }`;
 
@@ -57,7 +57,13 @@ export default async function ProgrammePage({
   }
 
   const requested = sp.w ? parseInt(sp.w, 10) : undefined;
-  const week = await getWeek(program.id, Number.isFinite(requested) ? requested : undefined, access.weekWhere);
+  const starts = await getCycleStarts(ownerId);
+  const currentNumero = currentWeekNumero(program.weeks, starts, new Date());
+  const week = await getWeek(
+    program.id,
+    Number.isFinite(requested) ? requested : (currentNumero ?? undefined),
+    access.weekWhere,
+  );
   if (!week) return <p className="text-muted">Semaine introuvable.</p>;
 
   const requestedDay = sp.j ? parseInt(sp.j, 10) : undefined;
@@ -74,11 +80,20 @@ export default async function ProgrammePage({
       </div>
 
       <div className="-mx-5 flex gap-3 overflow-x-auto px-5 pb-1">
-        {program.weeks.map((w) => (
-          <Link key={w.id} href={`/programme?w=${w.numero}`} className={pill(w.numero === week.numero)}>
-            {weekLabel(w)}
-          </Link>
-        ))}
+        {program.weeks.map((w) => {
+          const s = starts.get(w.blocNumero);
+          return (
+            <Link key={w.id} href={`/programme?w=${w.numero}`} className={pill(w.numero === week.numero)}>
+              {weekLabel(w)}
+              {s && (
+                <span className="mt-0.5 block text-[0.6rem] font-normal normal-case tracking-normal opacity-80">
+                  {formatRange(weekStart(s, w.semaineDansBloc), true)}
+                  {w.numero === currentNumero && <span className="ml-1 font-bold text-brand">· en cours</span>}
+                </span>
+              )}
+            </Link>
+          );
+        })}
       </div>
 
       <WeekTypeBanner type={week.type} note={week.note} />

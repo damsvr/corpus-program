@@ -3,7 +3,8 @@ import type { ModuleType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { MODULE_META, PROFILE_META } from "@/lib/profiles";
-import { MODULES, countSets, filterModule, getActiveProgram, getWeek, programOwnerId, type DayFull } from "@/lib/program";
+import { MODULES, countSets, filterModule, getActiveProgram, getCycleStarts, getWeek, programOwnerId, type DayFull } from "@/lib/program";
+import { currentWeekNumero, weekTitle } from "@/lib/week-label";
 import { getAccess } from "@/lib/access";
 import { AccessEnded } from "@/components/access-ended";
 import { InstagramContact } from "@/components/instagram-contact";
@@ -24,7 +25,10 @@ export default async function AujourdhuiPage() {
   if (access.ended) return <AccessEnded link={access.link} />;
   const ownerId = await programOwnerId(user);
   const program = await getActiveProgram(ownerId, user.activeProfile, access.weekWhere);
-  const week = program ? await getWeek(program.id, undefined, access.weekWhere) : null;
+  // Semaine de calendrier en cours si le coach a calé le cycle ; sinon la plus avancée du programme.
+  const starts = await getCycleStarts(ownerId);
+  const current = program ? currentWeekNumero(program.weeks, starts, new Date()) : null;
+  const week = program ? await getWeek(program.id, current ?? undefined, access.weekWhere) : null;
 
   if (!week) {
     return (
@@ -76,7 +80,7 @@ export default async function AujourdhuiPage() {
       <section className="rounded-3xl border border-line bg-gradient-to-b from-card2 to-card p-6">
         <div className="grad-accent h-[3px] w-12 rounded-full" />
         <p className="eyebrow mt-4 !text-brand">
-          Bloc {week.blocNumero} · Semaine {week.semaineDansBloc}
+          {weekTitle(week, starts.get(week.blocNumero))}
         </p>
         <h1 className="mt-1 text-4xl font-extrabold uppercase">Ta semaine</h1>
         <div className="mt-4 flex flex-wrap gap-2 text-xs uppercase tracking-[0.14em]">

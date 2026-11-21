@@ -77,6 +77,7 @@ model User {
   athlete            AthleteProfile?
   programs           Program[]
   sessions           SessionLog[]
+  cycles             CycleCalendar[]
 }
 
 // Lien d'inscription gratuit partagé par le coach (ex. préparation TyRun en
@@ -134,6 +135,18 @@ model Program {
   weeks     Week[]
 
   @@index([userId, active])
+}
+
+// Calendrier d'un cycle (= bloc) fixé par le coach : lundi de la semaine 1. La
+// semaine k du cycle couvre du lundi + 7(k-1) jours au dimanche suivant.
+model CycleCalendar {
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  blocNumero Int
+  startsOn   DateTime @db.Date
+  updatedAt  DateTime @updatedAt
+
+  @@id([userId, blocNumero])
 }
 
 model Week {

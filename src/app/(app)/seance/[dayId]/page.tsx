@@ -4,7 +4,8 @@ import type { ModuleType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { JOURS, MODULE_META } from "@/lib/profiles";
-import { programOwnerId } from "@/lib/program";
+import { getCycleStarts, programOwnerId } from "@/lib/program";
+import { weekTitle } from "@/lib/week-label";
 import { getAccess } from "@/lib/access";
 import { parseNotation, repsAsNumber } from "@/lib/format";
 import { personalizeCharge } from "@/lib/load-calc";
@@ -73,6 +74,7 @@ export default async function SeancePage({
     warning = "Module Charge : corps frais obligatoire, à faire en premier dans la journée.";
   }
 
+  const cycleStart = (await getCycleStarts(ownerId)).get(day.week.blocNumero);
   const weekday = JOURS.find((j) => j.key === day.weekday)?.label ?? null;
 
   const runnerBlocs: RunnerBloc[] = blocs.map((b) => ({
@@ -108,7 +110,7 @@ export default async function SeancePage({
       </Link>
       <div>
         <p className="eyebrow">
-          Bloc {day.week.blocNumero} · Semaine {day.week.semaineDansBloc} · Jour {day.jour}
+          {weekTitle(day.week, cycleStart)} · Jour {day.jour}
           {mod ? ` · Module ${MODULE_META[mod].label}` : ""}
         </p>
         <h1 className="mt-1 text-2xl font-extrabold uppercase leading-tight">{day.titre}</h1>

@@ -92,6 +92,12 @@ export async function getWeek(
   });
 }
 
+/** Calendrier des cycles du propriétaire de la programmation : cycle (bloc) → lundi de sa semaine 1. */
+export async function getCycleStarts(ownerId: string): Promise<Map<number, Date>> {
+  const rows = await db.cycleCalendar.findMany({ where: { userId: ownerId } });
+  return new Map(rows.map((r) => [r.blocNumero, r.startsOn]));
+}
+
 export function countSets(bloc: BlocFull): number {
   return bloc.exercices.reduce((a, e) => a + parseNotation(e.notation).sets, 0);
 }
