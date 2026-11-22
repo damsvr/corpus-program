@@ -6,6 +6,7 @@ import { Note } from "@/components/note";
 import { useVariant } from "@/components/variant";
 import { prescription as buildPrescription, splitMovement } from "@/lib/bloc-view";
 import { applyVariant, hasVariants } from "@/lib/variants";
+import { extractLevels, type Level } from "@/lib/levels";
 
 export type CardExercice = { nom: string; notation: string | null; charge: string | null; repos: string | null };
 
@@ -34,7 +35,11 @@ export function ExerciseCard({
   const [override, setOverride] = useState<typeof mode | null>(null);
   useEffect(() => setOverride(null), [mode]);
   const active = override ?? mode;
-  const view = variants ? applyVariant(ex, active) : ex;
+  const shown = variants ? applyVariant(ex, active) : ex;
+  // Niveaux N3 / N2 / N1 : options à choisir entre elles, jamais à enchaîner.
+  const leveled = extractLevels(shown, note);
+  const view = leveled ? { ...shown, ...leveled.ex } : shown;
+  const cardNote = leveled ? leveled.note : note;
   const nom = view.nom;
   const { label, title, detail } = splitMovement(nom);
   const prescription = buildPrescription(view, { keepSets });
@@ -69,7 +74,8 @@ export function ExerciseCard({
             {active === "rx" ? "RX · voir scaled" : "Scaled · voir RX"}
           </button>
         )}
-        {note && <Note text={note} inline />}
+        {leveled && <LevelPicker levels={leveled.levels} />}
+        {cardNote && <Note text={cardNote} inline />}
         {children}
       </div>
     </div>
@@ -83,6 +89,50 @@ export function ExerciseGroup({ label, children }: { label?: string | null; chil
     <div className="border-l-2 border-accent/60 pl-3">
       <p className="eyebrow mb-2 !text-accent">{label}</p>
       <div className="space-y-2.5">{children}</div>
+    </div>
+  );
+}
+
+const LEVEL_HINT: Record<Level["n"], string> = {
+  3: "prioritaire",
+  2: "si le niveau 3 est trop dur",
+  1: "le plus accessible",
+};
+
+/** « Choisis UN niveau » : N3 (prioritaire), N2, N1 sont des options, pas des mouvements à faire tous. */
+function LevelPicker({ levels }: { levels: Level[] }) {
+  const [chosen, setChosen] = useState<Level["n"]>(levels[0].n);
+  return (
+    <div className="mt-2.5" role="radiogroup" aria-label="Niveau au choix">
+      <p className="eyebrow mb-1.5 !text-accent">Choisis UN niveau — pas les trois</p>
+      <div className="space-y-1.5">
+        {levels.map((l) => {
+          const on = l.n === chosen;
+          return (
+            <button
+              key={l.n}
+              type="button"
+              role="radio"
+              aria-checked={on}
+              onClick={() => setChosen(l.n)}
+              className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2 text-left ${
+                on ? "border-accent bg-accent/10" : "border-line opacity-60"
+              }`}
+            >
+              <span
+                aria-hidden
+                className={`mt-1 size-3.5 shrink-0 rounded-full border-2 ${on ? "border-accent bg-accent" : "border-white/40"}`}
+              />
+              <span className="min-w-0">
+                <span className="block text-[0.64rem] font-bold uppercase tracking-[0.12em] text-brand">
+                  Niveau {l.n} · {LEVEL_HINT[l.n]}
+                </span>
+                <span className="block text-[0.82rem] leading-snug">{l.text || "—"}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

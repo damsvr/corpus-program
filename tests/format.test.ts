@@ -118,3 +118,11 @@ describe("parseNotation", () => {
     expect(parseNotation(null)).toEqual({ sets: 1, reps: "" });
   });
 });
+
+describe("parseNotation — niveaux N3/N2/N1", () => {
+  it("ne prend pas les niveaux pour des séries ou des reps", () => {
+    expect(parseNotation("4× — N3 : 5 strict / N2 : 6 banded")).toEqual({ sets: 4, reps: "" });
+    expect(parseNotation("N3 : 5×3 / N2 : 5×4 / N1 : 5×5")).toEqual({ sets: 1, reps: "" });
+    expect(parseNotation("5×5")).toEqual({ sets: 5, reps: "5" });
+  });
+});

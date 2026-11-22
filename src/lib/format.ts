@@ -1,6 +1,13 @@
+import { stripLevels } from "@/lib/levels";
 /** "5×4" -> { sets: 5, reps: "4" } ; "2×30''" -> { sets: 2, reps: "30''" } ; sinon 1 série. */
-export function parseNotation(notation?: string | null): { sets: number; reps: string } {
+export function parseNotation(raw?: string | null): { sets: number; reps: string } {
+  if (!raw) return { sets: 1, reps: "" };
+  // Les niveaux « N3 : … / N2 : … » sont des options, pas des séries ni des répétitions.
+  const notation = stripLevels(raw);
   if (!notation) return { sets: 1, reps: "" };
+  // « 4× » seul (les reps sont dans les niveaux) : séries sans répétitions.
+  const only = notation.match(/^\s*(\d+)\s*[×xX]\s*$/);
+  if (only) return { sets: Math.min(parseInt(only[1], 10), 20), reps: "" };
   const m = notation.match(/^\s*(\d+)\s*[×xX]\s*(.+?)\s*$/);
   if (m) return { sets: Math.min(parseInt(m[1], 10), 20), reps: m[2] };
   // "3 sets" / "4 séries" : nombre de séries sans répétitions précisées.
