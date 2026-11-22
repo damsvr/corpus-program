@@ -12,7 +12,8 @@ import { BlocRun } from "./bloc-run";
 import { FeedbackBox, type Feedback } from "./feedback-box";
 import { BlocHeader } from "@/components/bloc-header";
 import { ExerciseCard, ExerciseGroup } from "@/components/exercise-card";
-import { movementGroups } from "@/lib/bloc-view";
+import { exerciseParts, movementGroups } from "@/lib/bloc-view";
+import { ExerciseParts } from "@/components/exercise-parts";
 import { WodClock } from "./wod-clock";
 import {
   HoldTimerList,
@@ -59,6 +60,8 @@ function parseDureeMinutes(v: string | null): number | null {
   const b = m[2] ? parseFloat(m[2].replace(",", ".")) : a;
   return (a + b) / 2;
 }
+
+const hasParts = (ex: { nom: string }[]) => exerciseParts(ex)[0].part !== null;
 
 const isWorkBloc = (b: RunnerBloc) => {
   const k = classifyBloc(b.nom, b.isWod);
@@ -311,25 +314,31 @@ export function SessionRunner({
             {kind === "echauffement" && (
               <>
                 <WarmupTimer durationMin={parseDureeMinutes(b.dureeMin)} />
-                <div className="mt-4 space-y-2.5">
-                  {b.exercices.map((e) => (
-                    <ExerciseCard key={e.id} ex={e} keepSets note={e.note} />
-                  ))}
+                <div className="mt-4">
+                  <ExerciseParts
+                    exercices={b.exercices}
+                    renderItem={(e) => (
+                      <ExerciseCard key={e.id} ex={e} keepSets hideLabel={hasParts(b.exercices)} note={e.note} />
+                    )}
+                  />
                 </div>
               </>
             )}
 
             {kind === "mobilite" && (
-              <div className="mt-4 space-y-2.5">
-                {b.exercices.map((e) => {
-                  const n = parseNotation(e.notation);
-                  const holdSeconds = parseHoldSeconds(n.reps);
-                  return (
-                    <ExerciseCard key={e.id} ex={e} keepSets note={e.note}>
-                      {holdSeconds && <HoldTimerList seconds={holdSeconds} sets={n.sets} perSide={isPerSide(n.reps)} />}
-                    </ExerciseCard>
-                  );
-                })}
+              <div className="mt-4">
+                <ExerciseParts
+                  exercices={b.exercices}
+                  renderItem={(e) => {
+                    const n = parseNotation(e.notation);
+                    const holdSeconds = parseHoldSeconds(n.reps);
+                    return (
+                      <ExerciseCard key={e.id} ex={e} keepSets hideLabel={hasParts(b.exercices)} note={e.note}>
+                        {holdSeconds && <HoldTimerList seconds={holdSeconds} sets={n.sets} perSide={isPerSide(n.reps)} />}
+                      </ExerciseCard>
+                    );
+                  }}
+                />
               </div>
             )}
 

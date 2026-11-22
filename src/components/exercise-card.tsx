@@ -20,12 +20,15 @@ export type CardExercice = { nom: string; notation: string | null; charge: strin
 export function ExerciseCard({
   ex,
   keepSets,
+  hideLabel,
   note,
   children,
 }: {
   ex: CardExercice;
   /** Notation complète (« 2×10 ») : échauffement, mobilité, WOD. */
   keepSets?: boolean;
+  /** Repère « 2 — » déjà montré par la partie qui contient la carte. */
+  hideLabel?: boolean;
   note?: string | null;
   children?: React.ReactNode;
 }) {
@@ -50,12 +53,13 @@ export function ExerciseCard({
     <div className="flex overflow-hidden rounded-2xl border border-line bg-card2/70">
       <MovementThumb nom={nom} className="w-[5.25rem] shrink-0 self-stretch sm:w-28" />
       <div className="min-w-0 flex-1 px-3.5 py-3">
-        {label && <p className="eyebrow !text-brand">{label}</p>}
+        {label && !hideLabel && <p className="eyebrow !text-brand">{label}</p>}
         <p className="text-[1.05rem] font-extrabold uppercase leading-tight tracking-[0.01em]">{title}</p>
         {lead && (
-          <p className="mt-0.5 text-[0.8rem] leading-snug">
-            <span className="font-bold text-accent">{lead}</span>
-            {rest && <span className="text-white/70"> · {rest}</span>}
+          <p className="mt-1 leading-snug">
+            {/* Répétitions : aussi visibles que le nom du mouvement. */}
+            <span className="text-[1.05rem] font-extrabold uppercase tracking-[0.01em] text-accent">{bareCount(lead)}</span>
+            {rest && <span className="text-[0.8rem] text-white/70"> · {rest}</span>}
           </p>
         )}
         {detail && <p className="mt-1 text-[0.76rem] italic leading-snug text-muted">{detail}</p>}
@@ -92,6 +96,9 @@ export function ExerciseGroup({ label, children }: { label?: string | null; chil
     </div>
   );
 }
+
+/** « 10 » seul ne dit pas ce qu'on compte : « 10 reps ». */
+const bareCount = (lead: string) => (/^\d+(?:\s*[-–]\s*\d+)?$/.test(lead.trim()) ? `${lead.trim()} reps` : lead);
 
 const LEVEL_HINT: Record<Level["n"], string> = {
   3: "prioritaire",

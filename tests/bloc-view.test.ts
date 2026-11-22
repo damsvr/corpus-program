@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { blocMeta, movementGroups, prescription, splitBlocName, splitMovement } from "@/lib/bloc-view";
+import { blocMeta, exerciseParts, movementGroups, prescription, splitBlocName, splitMovement } from "@/lib/bloc-view";
 
 describe("splitBlocName", () => {
   it("BLOC A / WOD -> étiquette + titre", () => {
@@ -73,5 +73,22 @@ describe("movementGroups", () => {
   it("mouvements indépendants : un groupe chacun, sans libellé ; WOD jamais regroupé", () => {
     expect(movementGroups(null, [ex("A", "1×8"), ex("B", "1×5")]).map((x) => x.label)).toEqual([null, null]);
     expect(movementGroups("AMRAP 13'", [ex("A", "10"), ex("B", "10")], true)).toHaveLength(1);
+  });
+});
+
+describe("exerciseParts / repères numériques", () => {
+  const ex = (nom: string) => ({ nom });
+  it("regroupe l'échauffement par numéro", () => {
+    const g = exerciseParts([ex("1 — Corde à sauter"), ex("2 — Down dog"), ex("2 — Hollow rocks"), ex("2 — Handstand hold")]);
+    expect(g.map((x) => [x.part, x.items.length])).toEqual([["1", 1], ["2", 3]]);
+  });
+  it("une seule liste sans numéros distincts", () => {
+    expect(exerciseParts([ex("Rameur"), ex("Corde")])).toEqual([{ part: null, items: [ex("Rameur"), ex("Corde")] }]);
+    expect(exerciseParts([ex("1 — A"), ex("1 — B")]).length).toBe(1);
+  });
+  it("le repère numérique devient une étiquette, pas le titre", () => {
+    expect(splitMovement("1 — Corde à sauter — rythme régulier")).toEqual({ label: "1", title: "Corde à sauter", detail: "rythme régulier" });
+    expect(splitMovement("2K row").label).toBeNull();
+    expect(splitMovement("3-2-1 push-up").label).toBeNull();
   });
 });

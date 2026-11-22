@@ -62,11 +62,13 @@ export type SetsSummary = {
 
 /** "Back squat — barre à vide" -> "Back squat" ; "Tirage (variante)" -> "Tirage". */
 /** Repère d'ordre écrit par le coach devant le nom : « B1 — Sumo deadlift… », « A2. Pull-up ». */
-const LABEL = /^([A-Z]\d{1,2})\s*[—–:.)-]\s*/;
+// Lettre + chiffre (« B1 — ») ou chiffre seul suivi d'un tiret long / « . » / « ) » (« 2 — Hollow rocks »).
+// « 2K row », « 3-2-1 push-up » ne sont pas des repères.
+const LABEL = /^(?:([A-Z]\d{1,2})\s*[—–:.)-]\s*|(\d{1,2})\s*(?:[—–]|[:.)])\s+)/;
 
 export function exerciceLabel(nom: string): { label: string | null; rest: string } {
   const m = nom.match(LABEL);
-  return m ? { label: m[1], rest: nom.slice(m[0].length) } : { label: null, rest: nom };
+  return m ? { label: m[1] ?? m[2], rest: nom.slice(m[0].length) } : { label: null, rest: nom };
 }
 
 /** Nom du mouvement seul : sans repère « B1 », sans précision après « — » ni parenthèse. */

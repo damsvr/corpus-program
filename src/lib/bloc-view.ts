@@ -58,6 +58,22 @@ export function blocMeta(b: MetaBloc): string[] {
   return [blocDuration(b), blocStructure(b)].filter((x): x is string => !!x);
 }
 
+/**
+ * Parties d'un échauffement / d'une mobilité : le coach numérote ses mouvements
+ * (« 1 — Corde à sauter », « 2 — Hollow rocks »…) — chaque numéro est une partie.
+ * Sans au moins deux numéros différents, une seule liste.
+ */
+export function exerciseParts<T extends { nom: string }>(exercices: T[]): { part: string | null; items: T[] }[] {
+  const groups: { part: string | null; items: T[] }[] = [];
+  for (const e of exercices) {
+    const label = /^\d+$/.test(exerciceLabel(e.nom).label ?? "") ? exerciceLabel(e.nom).label : null;
+    const last = groups[groups.length - 1];
+    if (last && (label === null || label === last.part)) last.items.push(e);
+    else groups.push({ part: label, items: [e] });
+  }
+  return new Set(groups.map((g) => g.part).filter(Boolean)).size >= 2 ? groups : [{ part: null, items: exercices }];
+}
+
 /** Nom du mouvement en titre, précisions du coach (« — tempo 30X1 », « (RX) ») en détail. */
 export function splitMovement(nom: string): { label: string | null; title: string; detail: string | null } {
   const { label, rest: body } = exerciceLabel(nom);
