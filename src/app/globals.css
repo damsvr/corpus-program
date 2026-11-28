@@ -17,6 +17,13 @@
   --accent: #f0553a;
 }
 
+/* Charte DS Coaching (landing, carte de partage) : jaune → rouge. */
+[data-profile="ds"] {
+  --accent-from: #ffc533;
+  --accent-to: #ff3d2b;
+  --accent: #ff7a2f;
+}
+
 [data-profile="crossfit"] {
   --accent-from: #ef4444;
   --accent-to: #f43f5e;

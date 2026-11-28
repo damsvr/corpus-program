@@ -4,24 +4,9 @@ import Link from "next/link";
 import { useState } from "react";
 import { FrequencyPicker } from "@/components/frequency-picker";
 import { setProfile } from "../profil/actions";
+import { QUIZ_QUESTIONS } from "@/lib/profile-quiz";
 
-const QUESTIONS = [
-  {
-    q: "Est-ce que tu peux bloquer 75 minutes, quatre fois par semaine, six semaines d'affilée, sans avoir à négocier avec qui que ce soit ?",
-    no: "FUNCTIONAL",
-    yes: 2,
-  },
-  {
-    q: "Est-ce que tu es prêt à passer du temps sur la technique, sans que le résultat se voie tout de suite ?",
-    yes: "CROSSFIT",
-    no: 3,
-  },
-  {
-    q: "Est-ce que tu veux voir tes chiffres monter, avec ou sans dossard ?",
-    yes: "HYBRID",
-    no: "FUNCTIONAL",
-  },
-] as const;
+const QUESTIONS = QUIZ_QUESTIONS;
 
 const RESULT: Record<string, { label: string; promise: string }> = {
   CROSSFIT: { label: "CrossFit", promise: "Apprends les mouvements qui te bloquent." },

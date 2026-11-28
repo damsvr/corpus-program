@@ -7,6 +7,8 @@ import { signIn } from "@/auth";
 import { db } from "@/lib/db";
 import { isCoachEmail } from "@/lib/roles";
 import { isLinkOpen } from "@/lib/access";
+import { profileFromKey } from "@/lib/profiles";
+import { normalizeSource } from "@/lib/billing";
 
 export type FormState = { error?: string } | undefined;
 
@@ -53,7 +55,10 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   if (code && (!link || !isLinkOpen(link))) return { error: "Ce lien d'accès n'est plus valable." };
   // Le coach garde le nom et l'e-mail des inscrits du lien pour les recontacter (si accord).
   if (link && !parsed.data.name) return { error: "Ton prénom est requis" };
-  const optIn = Boolean(link) && formData.get("marketingOptIn") === "on";
+  const optIn = formData.get("marketingOptIn") === "on";
+  // Profil trouvé avec le quiz de la landing (?profil=hybrid) : pas besoin de le refaire.
+  const chosen = link ? null : profileFromKey(String(formData.get("profil") ?? ""));
+  const source = normalizeSource(String(formData.get("src") ?? "")) ?? (link ? "lien-gratuit" : null);
 
   const email = parsed.data.email.toLowerCase().trim();
   const exists = await db.user.findUnique({ where: { email } });
@@ -67,6 +72,8 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
       name: parsed.data.name,
       role: isCoachEmail(email) ? "COACH" : "ATHLETE",
       ...(link && { accessLinkId: link.id, activeProfile: link.profile }),
+      ...(chosen && { activeProfile: chosen }),
+      signupSource: source,
       ...(optIn && { marketingOptIn: true, marketingOptInAt: new Date() }),
       prs: { create: {} },
       athlete: { create: {} },
@@ -74,7 +81,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   });
 
   try {
-    await signIn("credentials", { email, password: parsed.data.password, redirectTo: link ? "/aujourdhui" : "/onboarding" });
+    await signIn("credentials", { email, password: parsed.data.password, redirectTo: link || chosen ? "/aujourdhui" : "/onboarding" });
   } catch (e) {
     if (e instanceof AuthError) return { error: "Compte créé, mais la connexion a échoué. Connecte-toi." };
     throw e;

@@ -12,6 +12,8 @@ import { StartLink } from "@/components/start-link";
 import { WeekdaySelect } from "@/components/weekday-select";
 import { FrequencyNote, SkippableBadge, WeekTypeBanner } from "@/components/week-notes";
 import { normalizeSessionsPerWeek, skippableDayId } from "@/lib/session-plan";
+import { FreePeriodBanner } from "@/components/free-period-banner";
+import { WelcomeSteps } from "@/components/welcome-steps";
 
 export const metadata = { title: "Aujourd'hui — Corpus Program" };
 
@@ -60,6 +62,10 @@ export default async function AujourdhuiPage() {
     done.some((s) => s.dayId === dayId && s.module === module);
 
   const training = week.days.filter((d) => d.jourType === "ENTRAINEMENT");
+  const welcome =
+    user.role === "COACH"
+      ? null
+      : await getWelcomeState(user.id);
   const perWeek = normalizeSessionsPerWeek(user.sessionsPerWeek);
   const skipId = perWeek === 3 ? skippableDayId(training) : null;
   const tampon = week.days.find((d) => d.jourType === "TAMPON");
@@ -91,6 +97,9 @@ export default async function AujourdhuiPage() {
           )}
         </div>
       </section>
+
+      <FreePeriodBanner user={user} />
+      {welcome && <WelcomeSteps state={welcome} firstDayId={training[0]?.id} />}
 
       <WeekTypeBanner type={week.type} note={week.note} />
       <FrequencyNote sessionsPerWeek={perWeek} />
@@ -234,4 +243,20 @@ function DayCard({
       )}
     </section>
   );
+}
+
+/** Où en est le nouvel inscrit dans ses trois premiers gestes (cf. WelcomeSteps). */
+async function getWelcomeState(userId: string) {
+  const [prs, athlete, sessions] = await Promise.all([
+    db.prs.findUnique({ where: { userId } }),
+    db.athleteProfile.findUnique({ where: { userId }, select: { joursDisponibles: true } }),
+    db.sessionLog.count({ where: { userId, endedAt: { not: null } } }),
+  ]);
+  const hasPrs = Boolean(
+    prs &&
+      [prs.backSquatKg, prs.souleveDeTerreKg, prs.developpeCoucheKg, prs.arracheKg, prs.epauleJeteKg, prs.poidsDeCorpsKg].some(
+        (v) => v != null,
+      ),
+  );
+  return { hasPrs, hasSession: sessions > 0, daysPicked: (athlete?.joursDisponibles.length ?? 0) > 0 };
 }

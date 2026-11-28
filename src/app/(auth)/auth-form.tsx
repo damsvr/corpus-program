@@ -10,17 +10,22 @@ type Props = {
   action: (prev: FormState, fd: FormData) => Promise<FormState>;
   /** Code d'un lien d'accès gratuit, transmis à l'inscription. */
   code?: string;
+  /** Profil choisi avec le quiz de la landing et provenance (?src=ig) : transmis à l'inscription. */
+  profile?: string;
+  source?: string;
 };
 
 const input =
   "w-full rounded-2xl border border-line bg-bg/70 px-5 py-4 text-base text-white placeholder:text-muted/60 outline-none focus:border-brand";
 
-export function AuthForm({ mode, action, code }: Props) {
+export function AuthForm({ mode, action, code, profile, source }: Props) {
   const [state, formAction] = useActionState(action, undefined);
   const isSignup = mode === "signup";
   return (
     <form action={formAction} className="rounded-3xl border border-line bg-card p-6 space-y-5">
       {code && <input type="hidden" name="code" value={code} />}
+      {profile && <input type="hidden" name="profil" value={profile} />}
+      {source && <input type="hidden" name="src" value={source} />}
       {isSignup && (
         <label className="block">
           <span className="eyebrow">{code ? "Prénom et nom" : "Prénom"}</span>
@@ -50,12 +55,13 @@ export function AuthForm({ mode, action, code }: Props) {
           className={`${input} mt-2`}
         />
       </label>
-      {code && (
+      {isSignup && (
         <label className="flex items-start gap-3 text-sm text-muted">
           <input type="checkbox" name="marketingOptIn" className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]" />
           <span>
-            J&apos;accepte d&apos;être recontacté par e-mail pour les prochaines sessions gratuites et les offres
-            d&apos;abonnement. Désactivable à tout moment dans mon profil.
+            {code
+              ? "J'accepte d'être recontacté par e-mail pour les prochaines sessions gratuites et les offres d'abonnement. Désactivable à tout moment dans mon profil."
+              : "J'accepte de recevoir les conseils du coach et les offres Corpus Program par e-mail. Désactivable à tout moment dans mon profil."}
           </span>
         </label>
       )}
@@ -69,7 +75,7 @@ export function AuthForm({ mode, action, code }: Props) {
       </SubmitButton>
       <p className="text-center text-xs uppercase tracking-[0.16em] text-muted">
         {isSignup ? "Déjà un compte ? " : "Pas de compte ? "}
-        <Link href={isSignup ? "/login" : "/signup"} className="text-brand">
+        <Link href={isSignup ? "/login" : source ? `/signup?src=${encodeURIComponent(source)}` : "/signup"} className="text-brand">
           {isSignup ? "Se connecter" : "Créer un compte"}
         </Link>
       </p>

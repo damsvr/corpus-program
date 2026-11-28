@@ -18,3 +18,30 @@ services:
         generateValue: true
       - key: NODE_VERSION
         value: 22
+      # Abonnement Stripe (voir docs/business/stripe-setup.md)
+      - key: APP_URL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: STRIPE_PRICE_ID
+        sync: false
+      - key: STRIPE_FOUNDER_PRICE_ID
+        sync: false
+      # Dernier jour d'accès libre (inclus, heure de Bruxelles)
+      - key: FREE_ACCESS_UNTIL
+        value: "2027-01-03"
+      - key: FOUNDER_UNTIL
+        value: "2027-01-31"
+      - key: FOUNDER_SEATS
+        value: "30"
+      # Mentions légales (BCE, adresse…) : voir src/lib/legal.ts
+      - key: LEGAL_NAME
+        sync: false
+      - key: LEGAL_ADDRESS
+        sync: false
+      - key: LEGAL_EMAIL
+        sync: false
+      - key: LEGAL_BCE
+        sync: false

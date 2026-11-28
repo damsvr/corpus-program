@@ -21,6 +21,7 @@ enum Role {
 enum SubscriptionStatus {
   TRIALING
   ACTIVE
+  PAST_DUE
   CANCELED
   NONE
 }
@@ -57,9 +58,17 @@ model User {
   // COACH (toi) importe/possède la programmation ; ATHLETE (tes clients) la
   // suit en lecture seule et garde son propre suivi (séances, historique, PR).
   role               Role               @default(ATHLETE)
-  // Prêt pour la facturation (Stripe viendra plus tard) — non exploité en v1.
-  subscriptionStatus SubscriptionStatus @default(TRIALING)
-  trialEndsAt        DateTime?
+  // Abonnement Stripe (synchronisé par le webhook /api/stripe/webhook) ; règles
+  // d'accès dans src/lib/billing.ts (accès libre jusqu'à FREE_ACCESS_UNTIL).
+  subscriptionStatus   SubscriptionStatus @default(NONE)
+  trialEndsAt          DateTime?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  stripePriceId        String?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  // D'où vient l'inscrit (?src=ig sur la landing) : instagram, tiktok…
+  signupSource         String?
   // Profil d'entraînement actif : pilote la teinte d'accent de l'app.
   activeProfile      ProfileType        @default(CROSSFIT)
   reminderTime       String?            @default("07:00")

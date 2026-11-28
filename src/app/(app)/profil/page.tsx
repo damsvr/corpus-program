@@ -12,6 +12,8 @@ import { normalizeSessionsPerWeek } from "@/lib/session-plan";
 import { CopyLink } from "@/components/copy-link";
 import { InstagramContact } from "@/components/instagram-contact";
 import { getAccess, isCycleOver, isLinkOpen } from "@/lib/access";
+import { getBillingStats } from "@/lib/billing-stats";
+import { appAccess } from "@/lib/billing";
 import { logout, saveAccessLink, saveAthlete, saveCycleStart, saveFrequency, saveMarketing, savePrs, saveReminder, setProfile } from "./actions";
 
 export const metadata = { title: "Profil — Corpus Program" };
@@ -44,7 +46,7 @@ export default async function ProfilPage() {
   ]);
   const prsRecord = (prs ?? {}) as Record<string, number | string | null | undefined>;
   const isCoach = user.role === "COACH";
-  const [publication, access, freeLink] = await Promise.all([
+  const [publication, access, freeLink, billing] = await Promise.all([
     isCoach ? getPublicationStatus(user.id) : null,
     getAccess(user),
     isCoach
@@ -56,7 +58,9 @@ export default async function ProfilPage() {
           },
         })
       : null,
+    isCoach ? getBillingStats() : null,
   ]);
+  const myAccess = appAccess(user);
   // Cycles à caler sur le calendrier : ceux déjà importés + le suivant.
   const cycleStarts = isCoach ? await getCycleStarts(user.id) : new Map<number, Date>();
   const cycleNumbers = isCoach
@@ -117,9 +121,9 @@ export default async function ProfilPage() {
             );
           })}
         </div>
-        {access.link && (
+        {access.link && <InstagramContact />}
+        {!isCoach && (
           <>
-            <InstagramContact />
             <div className="rounded-3xl border border-line bg-card p-5">
               <SaveForm action={saveMarketing}>
                 <label className="flex items-start gap-3 text-sm">
@@ -130,7 +134,9 @@ export default async function ProfilPage() {
                     className="mt-0.5 size-5 shrink-0 accent-[var(--accent)]"
                   />
                   <span>
-                    Me recontacter par e-mail pour les prochaines sessions gratuites et les offres d&apos;abonnement.
+                    {access.link
+                      ? "Me recontacter par e-mail pour les prochaines sessions gratuites et les offres d'abonnement."
+                      : "Recevoir les conseils du coach et les offres Corpus Program par e-mail."}
                   </span>
                 </label>
               </SaveForm>
@@ -139,7 +145,7 @@ export default async function ProfilPage() {
         )}
       </section>
 
-      <section className="space-y-4">
+      <section id="records" className="scroll-mt-6 space-y-4">
         <p className="eyebrow">Performance</p>
         <div className="rounded-3xl border border-line bg-card p-5">
           <h2 className="text-lg font-extrabold uppercase">PR personnels</h2>
@@ -231,7 +237,7 @@ export default async function ProfilPage() {
         </div>
       </section>
 
-      <section className="space-y-4">
+      <section id="rythme" className="scroll-mt-6 space-y-4">
         <p className="eyebrow">Rythme d&apos;entraînement</p>
         <div className="rounded-3xl border border-line bg-card p-5">
           <SaveForm action={saveFrequency}>
@@ -418,8 +424,37 @@ export default async function ProfilPage() {
         </section>
       )}
 
+      {billing && (
+        <section className="space-y-4">
+          <p className="eyebrow">Abonnés et inscriptions</p>
+          <div className="grid grid-cols-3 gap-3 text-center">
+            {[
+              ["Payants", billing.paying],
+              ["Fondateurs", billing.founders],
+              ["Inscrits 7 j", billing.last7Days],
+            ].map(([label, n]) => (
+              <div key={label} className="rounded-2xl border border-line bg-card p-4">
+                <p className="text-2xl font-extrabold">{n}</p>
+                <p className="eyebrow mt-1 !text-[0.6rem]">{label}</p>
+              </div>
+            ))}
+          </div>
+          {billing.sources.length > 0 && (
+            <p className="text-sm text-muted">
+              Provenance des inscrits :{" "}
+              {billing.sources.map((s) => `${s.source ?? "direct"} ${s.count}`).join(" · ")}
+            </p>
+          )}
+        </section>
+      )}
+
       <section className="space-y-3">
         <p className="eyebrow">Compte</p>
+        {(myAccess === "free-period" || myAccess === "subscribed" || myAccess === "locked") && (
+          <Link href="/abonnement" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
+            Mon abonnement →
+          </Link>
+        )}
         {isCoach && (
           <Link href="/import" className="block rounded-3xl border border-line bg-card px-6 py-4 text-sm font-bold uppercase tracking-[0.14em]">
             Importer une semaine →
