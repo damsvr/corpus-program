@@ -6,8 +6,8 @@ import { mapStripeStatus, PAYING_STATUSES } from "@/lib/billing";
  * Client Stripe côté serveur. Variables d'environnement :
  * - STRIPE_SECRET_KEY : clé secrète (sk_test_… pour tester, sk_live_… en prod) ;
  * - STRIPE_WEBHOOK_SECRET : secret de signature du webhook (whsec_…) ;
- * - STRIPE_PRICE_ID : prix mensuel standard (39 € TTC) ;
- * - STRIPE_FOUNDER_PRICE_ID (optionnel) : prix « membre fondateur » (29 € TTC) ;
+ * - STRIPE_PRICE_ID : prix mensuel standard (49 € TTC) ;
+ * - STRIPE_FOUNDER_PRICE_ID (optionnel) : prix « membre fondateur » (39 € TTC) ;
  * - APP_URL : URL publique de l'app (retours de Stripe Checkout).
  * Sans STRIPE_SECRET_KEY, l'app tourne normalement et le bouton d'abonnement
  * explique que le paiement n'est pas encore branché.

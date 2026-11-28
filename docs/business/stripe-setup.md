@@ -10,8 +10,8 @@ Ne sont jamais facturés : ton compte coach et les inscrits d'un lien d'accès g
 
 ## 2. Produit et prix
 Catalogue de produits → **Ajouter un produit** « Corpus Program » :
-- prix récurrent mensuel de **39,00 EUR**, à noter dans `STRIPE_PRICE_ID` (`price_…`) ;
-- un second prix mensuel de **29,00 EUR**, nommé « Membre fondateur », à noter dans `STRIPE_FOUNDER_PRICE_ID`.
+- prix récurrent mensuel de **49,00 EUR**, à noter dans `STRIPE_PRICE_ID` (`price_…`) ;
+- un second prix mensuel de **39,00 EUR**, nommé « Membre fondateur », à noter dans `STRIPE_FOUNDER_PRICE_ID`.
 
 Tant que tu es en franchise de TVA, ces prix sont des montants finaux, sans TVA. Le jour où tu passes au régime normal, demande à ton comptable comment traiter la TVA (Stripe Tax ou prix TTC inchangés).
 
@@ -32,8 +32,8 @@ Dashboard Render → service `corpus-program` → Environment :
 | `APP_URL` | `https://<ton-app>.onrender.com` (ou ton domaine) |
 | `STRIPE_SECRET_KEY` | `sk_test_…`, puis `sk_live_…` |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` |
-| `STRIPE_PRICE_ID` | prix à 39 € |
-| `STRIPE_FOUNDER_PRICE_ID` | prix à 29 € |
+| `STRIPE_PRICE_ID` | prix à 49 € |
+| `STRIPE_FOUNDER_PRICE_ID` | prix à 39 € |
 | `LEGAL_NAME`, `LEGAL_ADDRESS`, `LEGAL_EMAIL`, `LEGAL_BCE` | tes informations légales (affichées sur `/mentions-legales`, `/cgv`, `/confidentialite`) |
 
 `FREE_ACCESS_UNTIL`, `FOUNDER_UNTIL` et `FOUNDER_SEATS` sont déjà dans `render.yaml`. Change-les sur Render si tu veux décaler une date.
@@ -46,4 +46,4 @@ Dashboard Render → service `corpus-program` → Environment :
 ## Bon à savoir
 - **Plan Render free** : le service se met en veille, et le premier visiteur attend environ 30 s. Stripe relance un webhook qui échoue, donc rien n'est perdu, mais pour des clients payants **passe au plan Starter (environ 7 $/mois) avant le 4 janvier**.
 - **Codes promo** : ils sont activés dans Checkout. Tu peux créer un coupon dans Stripe (ex. un mois offert pour un partenaire TyRun).
-- **Places fondateur** : le compteur s'appuie sur les abonnés en cours au prix fondateur. Après le 31 janvier ou à 30 places, les nouveaux abonnés paient 39 €, et les fondateurs gardent 29 €.
+- **Places fondateur** : le compteur s'appuie sur les abonnés en cours au prix fondateur. Après le 31 janvier ou à 30 places, les nouveaux abonnés paient 49 €, et les fondateurs gardent 39 €.

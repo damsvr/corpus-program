@@ -13,7 +13,7 @@ Vidéo (Reel / TikTok)
              └─ Landing : 3 questions → profil → inscription (accès libre)
                   └─ App : « Bienvenue · 3 étapes » (jours, records, 1re séance)
                        └─ Toi : DM perso sous 24 h + suivi J3 / J7
-                            └─ 4 janvier : abonnement (fondateur 29 €) ou Premium (DM)
+                            └─ 4 janvier : abonnement (fondateur 39 €) ou Premium (DM)
 ```
 
 Chaque inscrit garde sa **provenance** (Instagram, TikTok…). Tu la vois dans `/profil › Abonnés et inscriptions` et dans l'export CSV.
@@ -92,7 +92,7 @@ Un lien `https://<ton-site>/signup?profil=hybrid&src=ig-dm` arrive directement s
 | Date | Action |
 |---|---|
 | 1er décembre → 20 décembre | Contenu quotidien, quiz, inscriptions. Rien à vendre. |
-| 21 décembre | Story et post : « Le 4 janvier, Corpus Program devient payant. 30 places fondateur à 29 €/mois à vie. » |
+| 21 décembre | Story et post : « Le 4 janvier, Corpus Program devient payant. 30 places fondateur à 39 €/mois au lieu de 49 €, garanti tant qu'on reste abonné. » |
 | 28 décembre | Rappel + témoignages des testeurs |
 | 2 janvier | « Plus que 2 jours d'accès libre » (story + DM aux inscrits actifs) |
 | 4 janvier | Lancement : « C'est parti ». L'app demande l'abonnement, et le premier prélèvement des abonnés de décembre tombe ce jour-là |

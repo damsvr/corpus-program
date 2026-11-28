@@ -9,6 +9,8 @@ const poppins = Poppins({
 });
 
 export const metadata: Metadata = {
+  // URLs absolues des aperçus de lien (Open Graph) : le domaine public de l'app.
+  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
   title: "Corpus Program",
   description: "Train for life, compete for fun. Le corps d'abord. Le reste suit.",
 };

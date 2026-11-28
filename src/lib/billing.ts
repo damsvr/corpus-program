@@ -19,8 +19,8 @@ export const DEFAULT_FOUNDER_UNTIL = "2027-01-31";
 export const DEFAULT_FOUNDER_SEATS = 30;
 
 /** Libellés affichés (TTC). Les montants réels sont ceux des prix Stripe. */
-export const PRICE_LABEL = "39 €";
-export const FOUNDER_PRICE_LABEL = "29 €";
+export const PRICE_LABEL = "49 €";
+export const FOUNDER_PRICE_LABEL = "39 €";
 export const PREMIUM_PRICE_LABEL = "149 €";
 
 /** Fin de journée à Bruxelles (23:59:59, heure d'hiver UTC+1) de la date « AAAA-MM-JJ ». */
